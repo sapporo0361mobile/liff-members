@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>連絡先</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow-x:hidden}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
-.container{max-width:880px;margin:0 auto;padding:12px 16px}
+.container{max-width:880px;margin:0 auto;padding:12px 16px 80px}
 .h1{font-size:18px;font-weight:800;margin:8px 0 12px}
 .search{margin-bottom:10px}
 .search input{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff;font-size:16px}
@@ -26,6 +27,10 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .loader{display:none;justify-content:center;align-items:center;padding:24px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* bottom nav */
+.bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
+.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
+.bottom-nav .material-icons{font-size:24px;color:#0f172a}
 </style>
 </head>
 <body>
@@ -36,11 +41,19 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   <div id="list" class="list" aria-live="polite"></div>
 </div>
 
+<nav class="bottom-nav">
+  <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
+  <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
+  <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+  <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
+  <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
+</nav>
+
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyfgJdPChvVxnDL6Gcr0WZR7UC_eFtFzIF28MtxXqUQzhYarnpRLN2F_dZ_XHH0tMmZ/exec";
-const $ = (id)=>document.getElementById(id);
 
+const $ = (id)=>document.getElementById(id);
 let members = [];
 let pollTimer = null;
 
@@ -50,7 +63,6 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
-
 function render(list){
   const box = $('list'); box.innerHTML = '';
   if(!list.length){ box.innerHTML = `<div class="empty">連絡先がいません</div>`; return; }
@@ -72,7 +84,6 @@ function render(list){
     box.appendChild(el);
   });
 }
-
 function filterList(){
   const v = $('q').value.trim().toLowerCase();
   if(!v){ render(members); return; }
@@ -106,8 +117,8 @@ async function loadMembers(showLoading=false){
   const st = await callServer({ action:'status', idToken: liff.getIDToken() });
   if(!st.bound){ location.replace('./register.html'); return; }
 
-  await loadMembers(true);                // 初回：ローディング表示
-  pollTimer = setInterval(()=>loadMembers(false), 5000); // 5秒ごと更新
+  await loadMembers(true);
+  pollTimer = setInterval(()=>loadMembers(false), 5000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loadMembers(false); });
 })();
 </script>
