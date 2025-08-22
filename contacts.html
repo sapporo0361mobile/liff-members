@@ -19,24 +19,30 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .meta{min-width:0}
 .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.last{font-size:12px;opacity:.9;color:#334155;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:4px}
 .empty{padding:24px;text-align:center;opacity:.7}
 .badge-dot{position:absolute;right:10px;top:10px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#ef4444;color:#fff;font-size:11px;line-height:18px;font-weight:700;display:none}
 .item.has-unread .badge-dot{display:inline-block}
+.loader{display:none;justify-content:center;align-items:center;padding:24px}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="h1">連絡先</div>
   <div class="search"><input id="q" placeholder="名前・店舗で検索"></div>
+  <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
   <div id="list" class="list" aria-live="polite"></div>
 </div>
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzTF8XIACXiASwd_xWtq-HM_rX4fwDqaEYMc3y9jqAV0YKtdGJC5fdH6g-qilj-zK1vQQ/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzuUAM67Gb0lcEflxfDoC3xp8sf6iSm9dEuWFfPyyFVQQnxnReMK35tJpo2iufMR_GrOw/exec";
 const $ = (id)=>document.getElementById(id);
 
 let members = [];
+let pollTimer = null;
 
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -51,11 +57,15 @@ function render(list){
   list.forEach(p=>{
     const el = document.createElement('div');
     el.className = 'item' + ((p.unread||0)>0 ? ' has-unread' : '');
+    const label = (p.lastFrom==='me') ? '自分: ' : '';
+    const snippet = (p.lastText||'').replace(/\s+/g,' ').trim();
+    const line2 = snippet ? `<div class="last">${label}${snippet}</div>` : '';
     el.innerHTML = `
       <div class="avatar"></div>
       <div class="meta">
         <div class="name">${p.name}</div>
         <div class="sub">${p.store || ''}${p.staffCode? '・'+p.staffCode : ''}</div>
+        ${line2}
       </div>
       <span class="badge-dot">${(p.unread||0)>99?'99+':(p.unread||0)}</span>`;
     el.onclick = ()=>{ location.href = './room.html?other=' + encodeURIComponent(p.userId); };
@@ -69,16 +79,25 @@ function filterList(){
   const f = members.filter(p =>
     (p.name||'').toLowerCase().includes(v) ||
     (p.store||'').toLowerCase().includes(v) ||
-    (p.staffCode||'').toLowerCase().includes(v)
+    (p.staffCode||'').toLowerCase().includes(v) ||
+    (p.lastText||'').toLowerCase().includes(v)
   );
   render(f);
 }
 $('q').addEventListener('input', filterList);
 
-async function loadMembers(){
-  const res = await callServer({ action:'members', idToken: liff.getIDToken() });
-  members = res.members || [];
-  render(members);
+async function loadMembers(showLoading=false){
+  try{
+    if(showLoading){ $('loader').style.display='flex'; }
+    const res = await callServer({ action:'members', idToken: liff.getIDToken() });
+    members = res.members || [];
+    render(members);
+  }catch(e){
+    console.error(e);
+    $('list').innerHTML = `<div class="empty">読み込みに失敗しました</div>`;
+  }finally{
+    $('loader').style.display='none';
+  }
 }
 
 (async ()=>{
@@ -86,9 +105,10 @@ async function loadMembers(){
   if(!liff.isLoggedIn()){ liff.login(); return; }
   const st = await callServer({ action:'status', idToken: liff.getIDToken() });
   if(!st.bound){ location.replace('./register.html'); return; }
-  await loadMembers();
-  // 画面に戻った時に未読更新
-  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loadMembers(); });
+
+  await loadMembers(true);                // 初回：ローディング表示
+  pollTimer = setInterval(()=>loadMembers(false), 5000); // 5秒ごと更新
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loadMembers(false); });
 })();
 </script>
 </body>
