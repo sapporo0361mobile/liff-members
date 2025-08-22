@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>連絡先</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;overflow-x:hidden}
+body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
+.container{max-width:880px;margin:0 auto;padding:12px 16px}
+.h1{font-size:18px;font-weight:800;margin:8px 0 12px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{
+  display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;
+  background:#fff;border:1px solid rgba(2,6,23,.08);cursor:pointer
+}
+.avatar{width:40px;height:40px;border-radius:50%;background:#e2e8f0;flex:0 0 auto}
+.meta{min-width:0}
+.name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:24px;text-align:center;opacity:.7}
+.search{margin-bottom:10px}
+.search input{
+  width:100%;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff;font-size:16px
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="h1">連絡先</div>
+  <div class="search"><input id="q" placeholder="名前・店舗で検索"></div>
+  <div id="list" class="list" aria-live="polite"></div>
+</div>
+
+<script>
+const LIFF_ID = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz6LDVGyhdhedd9h_XWT9eQAxTPsx1TiNqtKBxe60YnJBXoajVQbjff47wDSZTxbqnxng/exec";
+
+const $ = (id)=>document.getElementById(id);
+let members = [];
+
+async function callServer(payload){
+  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
+  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+
+function render(list){
+  const box = $('list'); box.innerHTML = '';
+  if(!list.length){
+    box.innerHTML = `<div class="empty">連絡先がいません</div>`;
+    return;
+  }
+  list.forEach(p=>{
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `
+      <div class="avatar"></div>
+      <div class="meta">
+        <div class="name">${p.name}</div>
+        <div class="sub">${p.store || ''} ${p.staffCode? '・' + p.staffCode : ''}</div>
+      </div>`;
+    el.onclick = ()=>{ location.href = './room.html?other=' + encodeURIComponent(p.userId); };
+    box.appendChild(el);
+  });
+}
+
+function filterList(){
+  const v = $('q').value.trim();
+  if(!v){ render(members); return; }
+  const s = v.toLowerCase();
+  const f = members.filter(p=>
+    (p.name||'').toLowerCase().includes(s) ||
+    (p.store||'').toLowerCase().includes(s) ||
+    (p.staffCode||'').toLowerCase().includes(s)
+  );
+  render(f);
+}
+
+$('q').addEventListener('input', filterList);
+
+(async ()=>{
+  await liff.init({ liffId: LIFF_ID });
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+
+  // 登録済みチェック（未登録なら会員登録へ）
+  const st = await callServer({ action:'status', idToken: liff.getIDToken() });
+  if(!st.bound){ location.replace('./register.html'); return; }
+
+  // 連絡先一覧
+  const res = await callServer({ action:'members', idToken: liff.getIDToken() });
+  members = res.members || [];
+  render(members);
+})();
+</script>
+</body>
+</html>
