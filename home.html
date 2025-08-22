@@ -11,21 +11,19 @@
 html,body{width:100%;height:100%;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
-img{display:block;max-width:100%;height:auto}
 .page{flex:1;display:flex;flex-direction:column;padding-bottom:72px}
 .container{width:100%;max-width:880px;margin:0 auto;padding:16px}
 .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,.06)}
 .profile{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0}
 .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
-.person{min-width:0}
-.name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800;letter-spacing:.01em;line-height:1.25}
+.name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
 .meta{display:flex;flex-wrap:wrap;gap:8px}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;color:#0f172a;font-size:12px}
-.badge .label{opacity:.7}
-.badge .value{font-weight:700;overflow-wrap:anywhere}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px}
+.badge .label{opacity:.7}.badge .value{font-weight:700}
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
+.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+.badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
 </style>
 </head>
 <body>
@@ -34,11 +32,11 @@ img{display:block;max-width:100%;height:auto}
     <section class="card" aria-live="polite">
       <div class="profile">
         <img id="avatar" class="avatar" alt="プロフィール画像" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="/>
-        <div class="person">
+        <div>
           <h2 id="displayName" class="name">読み込み中…</h2>
           <div class="meta">
-            <span class="badge" title="所属店舗"><span class="label">店舗</span><span class="value" id="badgeStore">—</span></span>
-            <span class="badge" title="職員コード"><span class="label">職員コード</span><span class="value" id="badgeCode">—</span></span>
+            <span class="badge"><span class="label">店舗</span><span class="value" id="badgeStore">—</span></span>
+            <span class="badge"><span class="label">職員コード</span><span class="value" id="badgeCode">—</span></span>
           </div>
         </div>
       </div>
@@ -46,26 +44,34 @@ img{display:block;max-width:100%;height:auto}
   </main>
 </div>
 
-<!-- ボトムナビ（chatへ遷移） -->
 <nav class="bottom-nav">
   <button onclick="location.href='./index.html'"><span class="material-icons">home</span></button>
   <button><span class="material-icons">person</span></button>
-  <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span></button>
-
+  <button id="chatBtn" onclick="location.href='./contacts.html'">
+    <span class="material-icons">chat</span>
+    <span id="chatBadge" class="badge-dot">0</span>
+  </button>
   <button><span class="material-icons">settings</span></button>
 </nav>
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz6LDVGyhdhedd9h_XWT9eQAxTPsx1TiNqtKBxe60YnJBXoajVQbjff47wDSZTxbqnxng/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzTF8XIACXiASwd_xWtq-HM_rX4fwDqaEYMc3y9jqAV0YKtdGJC5fdH6g-qilj-zK1vQQ/exec";
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
-  return j;
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
+}
+async function refreshUnread(){
+  try{
+    const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
+    const n = Number(res.unread||0); const b = $('chatBadge');
+    if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
+    else{ b.style.display='none'; }
+  }catch(e){ console.error(e); }
 }
 
 (async ()=>{
@@ -77,19 +83,17 @@ async function callServer(payload){
     const st = await callServer({ idToken: liff.getIDToken(), action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    const ln = (st.lastName || '').trim();
-    const fn = (st.firstName || '').trim();
-    const name = [ln, fn].filter(Boolean).join(' ') || (st.displayName || '会員');
-
+    const ln = (st.lastName||'').trim(), fn = (st.firstName||'').trim();
+    const name = [ln,fn].filter(Boolean).join(' ') || (st.displayName||'会員');
     $('displayName').textContent = name;
-    $('badgeStore').textContent  = st.store || '(未登録)';
-    $('badgeCode').textContent   = st.staffCode || '(未登録)';
+    $('badgeStore').textContent = st.store || '(未登録)';
+    $('badgeCode').textContent = st.staffCode || '(未登録)';
 
-    const profile = await liff.getProfile().catch(()=>({pictureUrl:''}));
-    if(profile.pictureUrl){
-      $('avatar').src = profile.pictureUrl;
-      $('avatar').alt = name;
-    }
+    const pf = await liff.getProfile().catch(()=>({pictureUrl:''}));
+    if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
+
+    await refreshUnread();
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshUnread(); });
   }catch(err){
     console.error(err);
     $('displayName').textContent = 'エラー：' + (err?.message||err);
