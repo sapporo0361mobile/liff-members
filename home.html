@@ -44,20 +44,17 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   </main>
 </div>
 
-<!-- 省略: head とプロフィール表示は現状のまま -->
-
 <nav class="bottom-nav">
   <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
-  <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
-  <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+  <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div><span class="badge-dot" id="chatBadge"></span></button>
+  <button onclick="location.href='./shift.html'"><span class="material-icons">photo_library</span><div>画像</div></button>
   <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
   <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
 </nav>
 
-
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxf5imSBingw-R5dUCN435TlYyWN8TqGWYTojGExhDs73q9V-QoU4RH2yYmAyT7Zloj6Q/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
@@ -72,8 +69,10 @@ async function refreshUnread(){
   try{
     const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
     const n = Number(res.unread||0); const b = $('chatBadge');
-    if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
-    else{ b.style.display='none'; }
+    if(b){
+      if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
+      else{ b.style.display='none'; }
+    }
   }catch(e){ console.error(e); }
 }
 
@@ -96,7 +95,7 @@ async function refreshUnread(){
     if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
 
     await refreshUnread();
-    unreadTimer = setInterval(refreshUnread, 5000); // 5秒ごと
+    unreadTimer = setInterval(refreshUnread, 5000);
     document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshUnread(); });
   }catch(err){
     console.error(err);
