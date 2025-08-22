@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>画像</title>
+<title>シフト</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
@@ -27,7 +27,6 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
-.btn{appearance:none;border:none;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer;white-space:nowrap}
 
 /* ▼ モーダル（プレビュー画像） */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
@@ -40,7 +39,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .vwrap{flex:1;display:flex;align-items:center;justify-content:center;background:#111}
 .vwrap img{max-width:100%;max-height:100%;object-fit:contain}
 
-/* bottom nav + 未読バッジ */
+/* bottom nav + 未読バッジ（他ページと統一） */
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
 .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
@@ -48,7 +47,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 </style>
 </head>
 <body>
-  <div class="header">画像</div>
+  <div class="header">シフト</div>
   <div class="container">
     <div class="breadcrumb" id="bc"></div>
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
@@ -59,7 +58,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
     </div>
 
     <div id="imagesSec" style="margin-top:12px">
-      <div class="section-title">画像</div>
+      <div class="section-title">シフト画像</div>
       <div id="images" class="grid"></div>
     </div>
 
@@ -69,13 +68,13 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   <nav class="bottom-nav">
     <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
     <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div><span class="badge-dot" id="chatBadge"></span></button>
-    <button onclick="location.href='./shift.html'"><span class="material-icons">photo_library</span><div>画像</div></button>
+    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
     <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
     <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
   </nav>
 
   <!-- ▼ プレビュー -->
-  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="画像プレビュー">
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="シフト画像プレビュー">
     <div class="viewer">
       <div class="vbar">
         <div id="vname" class="vname">読み込み中…</div>
@@ -167,12 +166,12 @@ function renderImages(list){
     el.onclick = ()=> openPreview(f.id, f.name);
     box.appendChild(el);
   });
-  // 空表示
   $('empty').style.display = (!list.length && $('folders').children.length===0) ? '' : 'none';
 }
 
 /* ▼ プレビュー */
 let currentUrl = null;
+let currentName = 'image';
 async function openPreview(fileId, name){
   try{
     const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
@@ -183,19 +182,14 @@ async function openPreview(fileId, name){
     const blob = new Blob([bin], { type: res.mimeType });
     if(currentUrl){ URL.revokeObjectURL(currentUrl); currentUrl=null; }
     currentUrl = URL.createObjectURL(blob);
+    currentName = res.name || name || 'image';
 
-    $('vname').textContent = res.name || name || '画像';
+    $('vname').textContent = currentName;
     $('vimg').src = currentUrl;
-    $('vimg').alt = res.name || name || '';
+    $('vimg').alt = currentName;
     $('modal').classList.add('open');
 
-    $('vsave').onclick = ()=>{
-      const a = document.createElement('a');
-      a.href = currentUrl;
-      a.download = res.name || name || 'image';
-      document.body.appendChild(a);
-      a.click(); a.remove();
-    };
+    $('vsave').onclick = saveCurrentImage;
   }catch(e){
     alert('プレビューに失敗しました：' + (e?.message || e));
   }
@@ -205,6 +199,35 @@ $('vclose').onclick = ()=>{
   $('vimg').src = '';
   if(currentUrl){ URL.revokeObjectURL(currentUrl); currentUrl=null; }
 };
+
+/* ▼ 画像の保存（ボタン／長押し／右クリック対応） */
+function saveCurrentImage(){
+  if(!currentUrl) return;
+  const a = document.createElement('a');
+  // download属性が使える環境では直接DL、使えない環境（iOS LINE/Safari等）は新規タブで開く
+  if('download' in a){
+    a.href = currentUrl;
+    a.download = currentName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }else{
+    window.open(currentUrl, '_blank');
+  }
+}
+// 長押し検知（モバイル）
+(function setupLongPress(){
+  const img = $('vimg');
+  let timer=null;
+  const LONG=600; // ms
+  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+
+  img.addEventListener('touchstart', ()=>{ clear(); timer=setTimeout(saveCurrentImage, LONG); }, {passive:true});
+  img.addEventListener('touchend', clear, {passive:true});
+  img.addEventListener('touchmove', clear, {passive:true});
+  // 右クリック（PC）
+  img.addEventListener('contextmenu', (e)=>{ e.preventDefault(); saveCurrentImage(); });
+})();
 
 /* ▼ 読み込み */
 async function loadFolder(folderId, showLoading){
@@ -238,27 +261,23 @@ async function loadFolder(folderId, showLoading){
   renderImages(root.images||[]);
   $('loader').style.display='none';
 
-  // ▼ 全ページ共通：未読バッジ
   setupUnreadBadge();
 })();
 
-/* ===== 全ページ共通：未読バッジ ===== */
+/* ===== 未読バッジ ===== */
 async function setupUnreadBadge(){
-  try{
-    const badge = $('chatBadge'); if(!badge) return;
-    async function refresh(){
-      try{
-        const r = await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify({action:'unreadTotal', idToken:liff.getIDToken()})});
-        const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false, unread:0} }
-        const n = Number(j.unread||0);
-        if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
-        else{ badge.style.display='none'; }
-      }catch(e){}
-    }
-    await refresh();
-    setInterval(refresh, 5000);
-    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
-  }catch(e){}
+  const badge = $('chatBadge'); if(!badge) return;
+  async function refresh(){
+    try{
+      const r = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
+      const n = Number(r.unread||0);
+      if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+      else{ badge.style.display='none'; }
+    }catch(e){}
+  }
+  await refresh();
+  setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
 }
 </script>
 </body>
