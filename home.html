@@ -19,30 +19,69 @@ body{
 img,svg{display:block;max-width:100%;height:auto}
 
 /* ===== レイアウト ===== */
-.page{flex:1;display:flex;flex-direction:column; padding-bottom:72px; } /* ← ボトムナビ分の余白 */
-.container{width:100%;max-width:880px;margin:0 auto;padding:16px}      /* ← 上部に詰める */
+.page{flex:1;display:flex;flex-direction:column;padding-bottom:72px;} /* ← ボトムナビ分 */
+.container{width:100%;max-width:880px;margin:0 auto;padding:16px}
 
-/* ===== プロフィールカード ===== */
-.card{
-  background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;
-  box-shadow:0 8px 24px rgba(2,6,23,.06)
+/* ===== おしゃれプロフィールカード ===== */
+/* 外側の“光るグラデ枠” */
+.cardWrap{
+  position:relative;border-radius:20px;padding:1px; /* ← グラデ枠用の1px */
+  background:linear-gradient(135deg,rgba(14,165,233,.35),rgba(6,199,85,.35));
+  box-shadow:0 12px 32px rgba(2,6,23,.10);
 }
-.profile{
-  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0;
+.card{
+  position:relative;border-radius:20px;background:rgba(255,255,255,.82);
+  border:1px solid rgba(2,6,23,.06); backdrop-filter:blur(6px);
+  overflow:hidden;
+}
+
+/* 上部カバー帯（淡いグラデ＋パターン） */
+.cardCover{
+  position:relative;height:84px;background:
+    radial-gradient(120% 120% at 0% 0%, #dbeafe 0%, #ecfeff 55%, #def7ec 100%);
+}
+.cardCover::after{
+  /* うっすらドットパターン */
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 12px 12px, rgba(2,6,23,.06) 1px, transparent 2px) 0 0/20px 20px;
+  opacity:.25; pointer-events:none;
+}
+
+/* アバターをちょいオーバーラップさせる */
+.profileHead{
+  display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;
+  padding:0 16px 16px; margin-top:-36px; /* ← カバーから少しはみ出す */
+}
+.avatarWrap{
+  position:relative;width:84px;height:84px;border-radius:50%;
+  background:linear-gradient(135deg,#06c755,#22d3ee);
+  padding:2px; box-shadow:0 8px 24px rgba(2,6,23,.15);
 }
 .avatar{
-  width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover
+  width:100%;height:100%;border-radius:50%;object-fit:cover;
+  background:#e2e8f0;border:2px solid #fff;
 }
+
+/* 氏名＋サブ（店舗/コードバッジ）は横幅に優しく */
 .person{min-width:0}
-.name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800;letter-spacing:.01em}
-.meta{display:flex;flex-wrap:wrap;gap:8px}
+.name{
+  margin:0 0 6px;font-size:clamp(18px,5.2vw,22px);font-weight:800;letter-spacing:.01em;
+  line-height:1.2;
+}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+
+/* バッジ（アイコン付きピル） */
 .badge{
   display:inline-flex;align-items:center;gap:6px;
-  padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);
-  background:#eef7ff;color:#0f172a;font-size:12px
+  padding:7px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);
+  background:#f0f7ff;color:#0f172a;font-size:12px;line-height:1;
 }
-.badge .label{opacity:.7}
-.badge .value{font-weight:700;overflow-wrap:anywhere}
+.badge .ico{display:inline-grid;place-items:center;width:16px;height:16px}
+.badge .val{font-weight:700;overflow-wrap:anywhere}
+
+/* カードのボディ（今は空・拡張用） */
+.cardBody{padding:8px 16px 16px}
 
 /* ===== ボトムナビ ===== */
 .bottom-nav{
@@ -56,28 +95,46 @@ img,svg{display:block;max-width:100%;height:auto}
   font-size:11px;color:#475569;padding:4px 0;
 }
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+
+/* 安全装置（はみ出しゼロ） */
+.badge .val, .name{word-break:break-word;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div class="page">
-  <!-- プロフィールカード（最上部に配置） -->
   <main class="container">
-    <section class="card" aria-live="polite">
-      <div class="profile">
-        <img id="avatar" class="avatar" alt="プロフィール画像" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="/>
-        <div class="person">
-          <h2 id="displayName" class="name">読み込み中…</h2>
-          <div class="meta">
-            <span class="badge" title="所属店舗">
-              <span class="label">店舗</span>
-              <span class="value" id="badgeStore">—</span>
-            </span>
-            <span class="badge" title="職員コード">
-              <span class="label">職員コード</span>
-              <span class="value" id="badgeCode">—</span>
-            </span>
+    <!-- グラデ縁取り＋ガラスカード -->
+    <section class="cardWrap" aria-live="polite">
+      <div class="card">
+        <div class="cardCover"></div>
+
+        <div class="profileHead">
+          <div class="avatarWrap">
+            <img id="avatar" class="avatar" alt="プロフィール画像" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="/>
+          </div>
+
+          <div class="person">
+            <h2 id="displayName" class="name">読み込み中…</h2>
+
+            <div class="badges">
+              <span class="badge" title="所属店舗">
+                <span class="ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 9.5V20a1 1 0 0 0 1 1h5v-6h6v6h5a1 1 0 0 0 1-1V9.5M2 9l2.4-5.4A2 2 0 0 1 6.2 2h11.6a2 2 0 0 1 1.8 1.1L22 9M2 9h20M7 21V9"/></svg>
+                </span>
+                <span id="badgeStore" class="val">—</span>
+              </span>
+
+              <span class="badge" title="職員コード">
+                <span class="ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 3a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H6Zm0 5h6a1 1 0 1 1 0 2H6a1 1 0 1 1 0-2Z"/></svg>
+                </span>
+                <span id="badgeCode" class="val">—</span>
+              </span>
+            </div>
           </div>
         </div>
+
+        <div class="cardBody"><!-- 何か追加したくなった時用のスペース --></div>
       </div>
     </section>
   </main>
@@ -94,7 +151,7 @@ img,svg{display:block;max-width:100%;height:auto}
 <script>
 /** 設定 */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwcc9fu2NOQsYuPc1Q73nKORg8iT02D2tOiO7IYrWuwMxzwGZE4joX8kFZAIw2FPRyDXQ/exec"; // そのまま利用OK
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwcc9fu2NOQsYuPc1Q73nKORg8iT02D2tOiO7IYrWuwMxzwGZE4joX8kFZAIw2FPRyDXQ/exec";
 const URL_REGISTER = "./register.html";
 
 /** Util */
@@ -118,7 +175,7 @@ async function callServer(payload){
     const st = await callServer({ idToken, action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    // 氏名は lastName + firstName を優先。無い場合のみ displayName / プロフィールにフォールバック
+    // 氏名は lastName + firstName を最優先、なければ displayName → LIFFプロフィール名
     const profile = await liff.getProfile().catch(()=>({displayName:'',pictureUrl:''}));
     const fullBySheet = [st.lastName||'', st.firstName||''].join(' ').trim();
     const name = fullBySheet || st.displayName || profile.displayName || '会員';
