@@ -20,11 +20,8 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
 
-/* Sections */
-.section-title{font-weight:800;margin:8px 0 6px}
-
 /* Folder list */
-.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px}
 .fcard{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
 .ficon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
 .ficon .material-icons{font-size:22px;color:#0f172a}
@@ -32,19 +29,12 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Image grid (embedded images) */
-.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.icard{position:relative;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:hidden}
-.thumb{width:100%;aspect-ratio:4/3;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
-.thumb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
-.imeta{padding:10px 10px 12px}
-.ititle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.isub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-
-/* Save button on card */
-.savebtn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(2,6,23,.18);background:#ffffffd9;backdrop-filter:saturate(1.2) blur(2px);
-  color:#0f172a;border-radius:999px;cursor:pointer;padding:6px 10px;font-size:12px;display:flex;align-items:center;gap:4px}
-.savebtn .material-icons{font-size:16px}
+/* Image grid (embedded images directly) */
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.icard{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:hidden}
+.thumb{width:100%;background:#000;display:flex;align-items:center;justify-content:center;min-height:180px}
+.thumb img{width:100%;height:auto;display:block;object-fit:contain;background:#111}
+.imeta{padding:8px 10px;border-top:1px solid rgba(2,6,23,.06);font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Misc */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
@@ -63,15 +53,16 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   <div class="header">シフト</div>
   <div class="container">
     <div class="breadcrumb" id="bc"></div>
+
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 
+    <!-- フォルダのみ（見出しなし） -->
     <div id="foldersSec">
-      <div class="section-title">フォルダ</div>
       <div id="folders" class="fgrid"></div>
     </div>
 
-    <div id="imagesSec" style="margin-top:12px">
-      <div class="section-title">シフト画像</div>
+    <!-- 画像（見出しなし） -->
+    <div id="imagesSec">
       <div id="images" class="igrid"></div>
     </div>
 
@@ -150,82 +141,43 @@ function renderFolders(list){
   });
 }
 
-/* ===== images (embedded) ===== */
-let io; // IntersectionObserver
-function ensureObserver(){
-  if(io) return io;
-  io = new IntersectionObserver(entries=>{
-    entries.forEach(async entry=>{
-      if(!entry.isIntersecting) return;
-      const card = entry.target;
-      if(card.dataset.loaded === '1') return;
-      card.dataset.loaded = '1';
-      const fileId = card.dataset.fileId;
-      try{
-        const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
-        if(!(res.mimeType||'').startsWith('image/')) throw new Error('not image');
-        const dataUrl = `data:${res.mimeType};base64,${res.base64}`;
-        const img = card.querySelector('img');
-        img.src = dataUrl;
-        img.alt = res.name || card.dataset.name || 'image';
-        // 保存ハンドラ
-        card.querySelector('.savebtn').onclick = ()=> saveDataUrl(res.name || 'image', dataUrl);
-        // 長押し・右クリックで保存
-        setupPressSave(img, ()=> saveDataUrl(res.name || 'image', dataUrl));
-      }catch(e){
-        const img = card.querySelector('img');
-        img.alt = '読み込み失敗';
-        img.style.opacity = .5;
-      }finally{
-        io.unobserve(card);
-      }
-    });
-  }, { root:null, threshold:.1 });
-  return io;
-}
-
-function renderImages(list){
+/* ===== images (ALL eager load & embed) ===== */
+async function renderImages(list){
   const box = $('images'); box.innerHTML = '';
   const imgs = (list||[]).filter(isImageEntry);
-  if(!imgs.length){ $('imagesSec').style.display='none'; } else { $('imagesSec').style.display=''; }
-  const obs = ensureObserver();
 
-  imgs.forEach(f=>{
-    const el = document.createElement('div'); el.className = 'icard';
-    el.dataset.fileId = f.id; el.dataset.name = f.name; el.dataset.loaded = '0';
-    el.innerHTML = `
-      <button class="savebtn" aria-label="保存"><span class="material-icons">download</span><span>保存</span></button>
-      <div class="thumb">
-        <img alt="読み込み中…" />
-      </div>
-      <div class="imeta">
-        <div class="ititle" title="${f.name}">${f.name}</div>
-        <div class="isub">${fmtDate(f.updatedAt||f.createdAt)}</div>
-      </div>`;
-    box.appendChild(el);
-    obs.observe(el);
+  if(!imgs.length){
+    $('imagesSec').style.display='none';
+    $('empty').style.display = ($('folders').children.length===0) ? '' : 'none';
+    return;
+  }
+  $('imagesSec').style.display='';
+
+  // すべての画像を最初から取得して Data URL で埋め込み表示
+  const tasks = imgs.map(async f=>{
+    const wrap = document.createElement('div'); wrap.className='icard';
+    wrap.innerHTML = `
+      <div class="thumb"><img alt="読み込み中…" /></div>
+      <div class="imeta" title="${f.name}">${f.name}　${fmtDate(f.updatedAt||f.createdAt)}</div>`;
+    box.appendChild(wrap);
+
+    try{
+      const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId: f.id });
+      if(!(res.mimeType||'').startsWith('image/')) throw new Error('not image');
+      const dataUrl = `data:${res.mimeType};base64,${res.base64}`;
+      const img = wrap.querySelector('img');
+      img.src = dataUrl;
+      img.alt = res.name || f.name || 'image';
+    }catch(e){
+      const img = wrap.querySelector('img');
+      img.alt = '読み込み失敗';
+      img.style.opacity = .5;
+    }
   });
 
-  $('empty').style.display = (!imgs.length && $('folders').children.length===0) ? '' : 'none';
-}
-
-/* 保存共通 */
-function saveDataUrl(name, dataUrl){
-  const a = document.createElement('a');
-  if('download' in a){
-    a.href = dataUrl; a.download = name || 'image';
-    document.body.appendChild(a); a.click(); a.remove();
-  }else{
-    window.open(dataUrl, '_blank'); // iOS Safari/LINE など
-  }
-}
-function setupPressSave(img, handler){
-  let timer=null; const LONG=600;
-  const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
-  img.addEventListener('touchstart', ()=>{ clear(); timer=setTimeout(handler, LONG); }, {passive:true});
-  img.addEventListener('touchend', clear, {passive:true});
-  img.addEventListener('touchmove', clear, {passive:true});
-  img.addEventListener('contextmenu', (e)=>{ e.preventDefault(); handler(); });
+  // 全件完了を待ってから空表示の制御（“表示域以外も全て表示”のため待機）
+  await Promise.all(tasks);
+  $('empty').style.display = 'none';
 }
 
 /* ===== load folder ===== */
@@ -234,7 +186,7 @@ async function loadFolder(folderId, showLoading){
     if(showLoading){ $('loader').style.display='flex'; }
     const res = await callServer({ action:'shiftChildren', idToken: liff.getIDToken(), folderId });
     renderFolders(res.folders||[]);
-    renderImages(res.images||[]);
+    await renderImages(res.images||[]); // ← 全件 eager load
   }catch(e){
     console.error(e);
     $('empty').style.display='';
@@ -258,7 +210,7 @@ async function loadFolder(folderId, showLoading){
   trail.push({ id: root.folder.id, name: root.folder.name });
   renderBreadcrumb();
   renderFolders(root.folders||[]);
-  renderImages(root.images||[]);
+  await renderImages(root.images||[]); // ← 初期表示も全件 eager load
   $('loader').style.display='none';
 
   setupUnreadBadge();
