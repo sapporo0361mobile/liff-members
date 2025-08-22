@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>会員ページ</title>
+<title>ホーム</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
@@ -86,7 +86,7 @@ async function refreshUnread(){
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
     const ln = (st.lastName||'').trim(), fn = (st.firstName||'').trim();
-    const name = [ln,fn].filter(Boolean).join(' ') || (st.displayName||'会員');
+    const name = [ln,fn].filter(Boolean).join(' ') || (st.displayName||'職員');
     $('displayName').textContent = name;
     $('badgeStore').textContent = st.store || '(未登録)';
     $('badgeCode').textContent = st.staffCode || '(未登録)';
