@@ -6,57 +6,211 @@
 <title>会員ページ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-/* 共通：はみ出し防止 */
+/* =========================
+   基本（はみ出し防止＋テーマ）
+   ========================= */
 *,*::before,*::after{box-sizing:border-box}
 html,body{width:100%;height:100%;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;background:#fff;color:#111}
-.wrap{min-height:100svh;min-height:100dvh;width:100%;
+:root{
+  --bg:#0b1220;
+  --surface:#0f1729;
+  --card:#111a2f;
+  --card-2:#0e1a2b;
+  --text:#e6edf7;
+  --muted:#9ca3af;
+  --brand:#06c755;          /* LINEグリーン */
+  --ring:#5eead4;           /* アクセント */
+  --border:rgba(255,255,255,.08);
+  --chip:#12253a;
+  --shadow:0 10px 30px rgba(0,0,0,.25);
+  --radius:16px;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f6f8fc; --surface:#ecf2ff; --card:#ffffff; --card-2:#f9fbff;
+    --text:#0f172a; --muted:#475569; --border:rgba(2,6,23,.08); --chip:#eef7ff;
+    --shadow:0 8px 24px rgba(2,6,23,.08);
+  }
+}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
+
+/* 安全領域＋レイアウト */
+.page{
+  min-height:100svh;min-height:100dvh;width:100%;
   padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
-  padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
-img,video,canvas,svg{max-width:100%;height:auto;display:block}
+  padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px);
+  display:flex;flex-direction:column;
+}
 
-/* register と同じ外枠 */
-.container{width:100%;max-width:720px;margin:0 auto;padding:0 16px}
-.card{width:100%;max-width:100%;border:1px solid #e5e7eb;border-radius:16px;padding:16px;background:#fff}
+/* =========================
+   ヘッダー（グラデ＋波）
+   ========================= */
+.hero{
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg,#0ea5e9 0%, #22d3ee 33%, #06c755 100%);
+  color:#fff; border-radius:0 0 24px 24px;
+  padding:32px 16px 72px;
+  box-shadow:var(--shadow);
+}
+.container{width:100%;max-width:880px;margin:0 auto;padding:0 16px}
 
-h1{margin:0 0 8px}
-.muted{opacity:.75}
+.brand{
+  display:flex;align-items:center;gap:12px;margin-bottom:8px
+}
+.brandDot{
+  width:36px;height:36px;border-radius:10px;background:#fff;color:#0b1b13;display:grid;place-items:center;font-weight:800
+}
+.hero h1{margin:0;font-size:clamp(20px,4.8vw,28px);letter-spacing:.01em}
+.subtitle{opacity:.95;margin-top:4px}
 
-.rows{display:grid;gap:10px;margin-top:8px}
-.row{display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;background:#fff;min-width:0}
-.key{flex:0 0 auto;opacity:.75}
-.val{flex:1 1 auto;min-width:0;text-align:right;overflow-wrap:anywhere;word-break:break-word}
+/* 波形装飾 */
+.hero::after{
+  content:""; position:absolute; inset:auto -10% 0 -10%; height:48px;
+  background:radial-gradient(120% 120% at 50% -20%, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 60%);
+  filter:blur(8px);
+}
 
-.actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end}
-.btn{appearance:none;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;background:#fff;cursor:pointer}
+/* =========================
+   メインカード（プロフィール）
+   ========================= */
+.main{ position:relative; top:-48px; }
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; box-shadow:var(--shadow);
+}
+.profile{
+  display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:center;
+}
+.avatar{
+  width:64px; height:64px; border-radius:50%; border:2px solid rgba(255,255,255,.6); background:#cbd5e1;
+}
+.person{
+  min-width:0;
+}
+.name{
+  font-size:clamp(18px,4.6vw,22px); font-weight:800; letter-spacing:.01em; margin:0;
+}
+.badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 10px; border-radius:999px; border:1px solid var(--border);
+  background:var(--chip); color:#dbeafe; font-size:12px;
+}
+.badge svg{width:14px;height:14px;opacity:.9}
+.qr{
+  width:92px;height:92px; border-radius:12px; border:1px solid var(--border); overflow:hidden; background:var(--card-2)
+}
+
+/* =========================
+   情報グリッド
+   ========================= */
+.grid{
+  display:grid; gap:12px; margin-top:14px;
+}
+.row{
+  display:flex; gap:12px; align-items:center; background:var(--card-2);
+  border:1px solid var(--border); border-radius:12px; padding:12px 14px; min-width:0;
+}
+.key{flex:0 0 auto; color:var(--muted)}
+.val{
+  flex:1 1 auto; min-width:0; text-align:right;
+  overflow-wrap:anywhere; word-break:break-word;
+  font-variation-settings:"wght" 600;
+}
+
+/* =========================
+   アクション
+   ========================= */
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.btn{
+  appearance:none; border:none; cursor:pointer;
+  border-radius:12px; padding:12px 16px; font-size:15px;
+  background:var(--brand); color:#0b1b13; font-weight:700;
+  box-shadow:0 6px 18px rgba(6,199,85,.25);
+}
+.btn.ghost{
+  background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none;
+}
+
+/* =========================
+   スケルトン（読み込み中）
+   ========================= */
+.skel{position:relative; overflow:hidden; background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.16),rgba(255,255,255,.06)); animation:shimmer 1.6s infinite}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.skel.round{border-radius:999px;height:64px;width:64px}
+.skel.line{height:14px;border-radius:8px}
+.skel.block{height:92px;border-radius:12px}
+
+/* 画像がはみ出さないように */
+img,svg{display:block;max-width:100%;height:auto}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="container">
-    <div class="card">
-      <h1>会員ページ</h1>
-      <div id="sub" class="muted">読み込み中…</div>
+<div class="page">
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <div class="brand">
+        <div class="brandDot">ID</div>
+        <div>
+          <h1>会員ページ</h1>
+          <div class="subtitle" id="sub">読み込み中…</div>
+        </div>
+      </div>
+    </div>
+  </header>
 
-      <div class="rows" id="rows" style="display:none">
+  <!-- Main -->
+  <main class="container main">
+    <section class="card" aria-live="polite">
+      <!-- プロフィール -->
+      <div class="profile">
+        <img id="avatar" class="avatar" alt="" src="" />
+        <div class="person">
+          <h2 id="displayName" class="name">—</h2>
+          <div class="badges">
+            <span class="badge" id="badgeStore" title="所属店舗">
+              <!-- store icon -->
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9.5V20a1 1 0 0 0 1 1h5v-6h6v6h5a1 1 0 0 0 1-1V9.5M2 9l2.4-5.4A2 2 0 0 1 6.2 2h11.6a2 2 0 0 1 1.8 1.1L22 9M2 9h20M7 21V9"/></svg>
+              <span id="badgeStoreText">—</span>
+            </span>
+            <span class="badge" title="職員コード">
+              <!-- id icon -->
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm2 3a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H6Zm0 5h6a1 1 0 1 1 0 2H6a1 1 0 1 1 0-2Z"/></svg>
+              <span id="badgeCodeText">—</span>
+            </span>
+          </div>
+        </div>
+        <div class="qr">
+          <img id="qrimg" alt="QR" width="92" height="92">
+        </div>
+      </div>
+
+      <!-- 情報グリッド -->
+      <div class="grid" style="margin-top:14px">
         <div class="row"><div class="key">所属店舗</div><div class="val" id="v_store">—</div></div>
         <div class="row"><div class="key">職員コード</div><div class="val" id="v_code">—</div></div>
         <div class="row"><div class="key">氏名</div><div class="val" id="v_name">—</div></div>
       </div>
 
-      <div class="actions"><button id="logout" class="btn">ログアウト</button></div>
-    </div>
-  </div>
+      <!-- アクション -->
+      <div class="actions">
+        <button id="logout" class="btn ghost">ログアウト</button>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script>
+/** 設定 */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycby042IR537_dOHo0XTri9kTgdwZVRQQFO_vIJuFLW3_gSkmWQYoVqx0vBFxuDSTAxZajQ/exec";  // ← 差し替え
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycby042IR537_dOHo0XTri9kTgdwZVRQQFO_vIJuFLW3_gSkmWQYoVqx0vBFxuDSTAxZajQ/exec"; // ← 差し替え
 const URL_REGISTER = "./register.html";
 
+/** Util */
 const $ = (id)=>document.getElementById(id);
-
+function wrapQR(text){ const data = encodeURIComponent(text||""); return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${data}`; }
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
@@ -64,25 +218,58 @@ async function callServer(payload){
   return j;
 }
 
+/** 初期化 */
 (async ()=>{
   try{
+    // スケルトン（初期表示）
+    $('displayName').textContent = '読込中…';
+    $('badgeStoreText').textContent = '—';
+    $('badgeCodeText').textContent = '—';
+    $('sub').textContent = '読み込み中…';
+
     await liff.init({ liffId: LIFF_ID });
     if(!liff.isLoggedIn()){ liff.login(); return; }
-    const idToken = liff.getIDToken();
 
+    const idToken = liff.getIDToken();
     const st = await callServer({ idToken, action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    $('v_store').textContent = st.store || '(未登録)';
-    $('v_code').textContent  = st.staffCode || '(未登録)';
-    $('v_name').textContent  = st.displayName || '会員';
-    $('rows').style.display = '';
+    // プロフィールと表示
+    const profile = await liff.getProfile().catch(()=>({displayName:'' , pictureUrl:''}));
+    const name = st.displayName || profile.displayName || '会員';
+    const store = st.store || '(未登録)';
+    const code  = st.staffCode || '(未登録)';
+
+    $('displayName').textContent = name;
+    $('v_name').textContent = name;
+    $('v_store').textContent = store;
+    $('v_code').textContent  = code;
+
+    $('badgeStoreText').textContent = store;
+    $('badgeCodeText').textContent  = code;
+
+    if(profile.pictureUrl){
+      $('avatar').src = profile.pictureUrl;
+      $('avatar').alt = name;
+    }else{
+      // 画像が無い時のプレースホルダ（1px透明画像）
+      $('avatar').src = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+    }
+
+    // 会員IDのQR（userId を利用）
+    if(st.userId){
+      $('qrimg').src = wrapQR(st.userId);
+      $('qrimg').alt = '会員QR';
+    }
+
     $('sub').textContent = 'ようこそ！';
   }catch(err){
-    console.error(err); $('sub').textContent = 'エラー：'+(err?.message||err);
+    console.error(err);
+    $('sub').textContent = 'エラー：' + (err?.message||err);
   }
 })();
 
+/** 操作 */
 $('logout').addEventListener('click', ()=>{
   try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
   location.replace("./index.html");
