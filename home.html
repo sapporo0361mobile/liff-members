@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>会員ホーム</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body{margin:0;background:#ffffff;color:#111827;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
+    .bar{padding:14px 16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+    .main{padding:16px}
+    .muted{opacity:.75}
+    .btn{appearance:none;border:none;border-radius:12px;padding:10px 14px;background:#06c755;color:#fff;cursor:pointer}
+    .ghost{background:transparent;border:1px solid #e5e7eb;color:#111827}
+    .card{border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div>
+      <div id="displayName" style="font-weight:700">—</div>
+      <div class="muted" id="staffLine" style="font-size:12px">—</div>
+    </div>
+    <button id="logout" class="btn ghost">ログアウト</button>
+  </div>
+
+  <div class="main">
+    <div class="muted" id="status">確認中…</div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px">ようこそ！</h3>
+      <div>会員専用のコンテンツをここに配置します。</div>
+    </div>
+  </div>
+
+<script>
+  // ← 差し替え
+  const LIFF_ID = "2007972627-vnAq4qbB";
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbygU1M9ZVUPa5qyTYreyh3a1yu3ex3bmHZ9au-Z7cdGOYCGKlrCvTpyTF9fHSCxDe8SYA/exec";
+  const LOGIN_URL = "./index.html"; // ガードに引っかかったら戻す先
+
+  const $ = (id)=>document.getElementById(id);
+
+  async function callServer(payload){
+    const res = await fetch(GAS_ENDPOINT, { method:'POST', body: JSON.stringify(payload) });
+    const text = await res.text();
+    let data={}; try{ data=JSON.parse(text);}catch(e){ data={ok:false,error:'JSON parse failed'} }
+    if(!res.ok || !data.ok) throw new Error(data.error||('HTTP '+res.status+' '+text));
+    return data;
+  }
+
+  async function guardAndLoad(){
+    try{
+      await liff.init({ liffId: LIFF_ID });
+      if(!liff.isLoggedIn()){ liff.login(); return; }
+      const idToken = liff.getIDToken();
+
+      const status = await callServer({ idToken, action:'status' });
+
+      if(!status.bound){
+        // 未紐づけ/未ログイン → ログイン入口へ戻す
+        location.replace(LOGIN_URL);
+        return;
+      }
+
+      // 表示情報
+      const profile = await liff.getProfile().catch(()=>({displayName:''}));
+      const name = status.displayName || profile.displayName || '会員';
+      $('displayName').textContent = name;
+      $('staffLine').textContent = '職員コード：' + (status.staffCode || '(未登録)');
+      $('status').textContent = 'ログイン中 / 会員ID: ' + (status.userId || '');
+    }catch(err){
+      console.error(err);
+      $('status').textContent = 'エラー：'+(err?.message||err);
+    }
+  }
+
+  $('logout').addEventListener('click', ()=>{
+    try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
+    location.replace(LOGIN_URL);
+  });
+
+  guardAndLoad();
+</script>
+</body>
+</html>
