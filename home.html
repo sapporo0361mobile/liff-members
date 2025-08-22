@@ -44,19 +44,20 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   </main>
 </div>
 
+<!-- 省略: head とプロフィール表示は現状のまま -->
+
 <nav class="bottom-nav">
-  <button onclick="location.href='./index.html'"><span class="material-icons">home</span></button>
-  <button><span class="material-icons">person</span></button>
-  <button id="chatBtn" onclick="location.href='./contacts.html'">
-    <span class="material-icons">chat</span>
-    <span id="chatBadge" class="badge-dot">0</span>
-  </button>
-  <button><span class="material-icons">settings</span></button>
+  <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
+  <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
+  <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+  <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
+  <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
 </nav>
+
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzuUAM67Gb0lcEflxfDoC3xp8sf6iSm9dEuWFfPyyFVQQnxnReMK35tJpo2iufMR_GrOw/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyfgJdPChvVxnDL6Gcr0WZR7UC_eFtFzIF28MtxXqUQzhYarnpRLN2F_dZ_XHH0tMmZ/exec";
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
