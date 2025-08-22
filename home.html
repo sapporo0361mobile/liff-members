@@ -173,12 +173,18 @@ async function callServer(payload){
 
     const idToken = liff.getIDToken();
     const st = await callServer({ idToken, action:"status" });
+    console.log("[status]", st); // ← デバッグ（GASから何が返っているか確認）
+
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    // 氏名は lastName + firstName を最優先、なければ displayName → LIFFプロフィール名
-    const profile = await liff.getProfile().catch(()=>({displayName:'',pictureUrl:''}));
-    const fullBySheet = [st.lastName||'', st.firstName||''].join(' ').trim();
-    const name = fullBySheet || st.displayName || profile.displayName || '会員';
+    // LIFFプロフィールは画像のみに利用（表示名は使わない）
+    const profile = await liff.getProfile().catch(()=>({pictureUrl:''}));
+
+    // ★ lastName + firstName を最優先、なければ displayName、最後に "会員"
+    const ln = (st.lastName || "").trim();
+    const fn = (st.firstName || "").trim();
+    const fullBySheet = [ln, fn].filter(Boolean).join(" ");
+    const name = fullBySheet || (st.displayName || "").trim() || "会員";
 
     $('displayName').textContent = name;
     $('badgeStore').textContent  = st.store || '(未登録)';
@@ -194,5 +200,6 @@ async function callServer(payload){
   }
 })();
 </script>
+
 </body>
 </html>
