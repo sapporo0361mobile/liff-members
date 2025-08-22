@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>会員ページ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 /* ===== 基本設定（ライト固定 & はみ出し防止） ===== */
 *,*::before,*::after{box-sizing:border-box}
@@ -12,17 +13,13 @@ html,body{width:100%;height:100%;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0;background:#f6f8fc;color:#0f172a;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
+  display:flex;flex-direction:column;
 }
 img{display:block;max-width:100%;height:auto}
 
 /* ===== レイアウト ===== */
-.page{
-  min-height:100svh;min-height:100dvh;width:100%;
-  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
-  padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px);
-  display:flex;flex-direction:column;
-}
+.page{flex:1;display:flex;flex-direction:column;}
 .container{width:100%;max-width:880px;margin:0 auto;padding:0 16px}
 
 /* ===== ヘッダー ===== */
@@ -37,7 +34,7 @@ img{display:block;max-width:100%;height:auto}
 .subtitle{opacity:.75;margin-top:4px}
 
 /* ===== プロフィールカード ===== */
-.main{position:relative;top:-40px}
+.main{position:relative;top:-40px;flex:1}
 .card{
   background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;
   box-shadow:0 8px 24px rgba(2,6,23,.06)
@@ -59,13 +56,18 @@ img{display:block;max-width:100%;height:auto}
 .badge .label{opacity:.7}
 .badge .value{font-weight:700;overflow-wrap:anywhere}
 
-/* ===== アクション ===== */
-.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
-.btn{
-  appearance:none;border:1px solid rgba(2,6,23,.12);border-radius:12px;
-  padding:12px 16px;font-size:15px;background:#fff;color:#0f172a;cursor:pointer
+/* ===== ボトムナビ ===== */
+.bottom-nav{
+  display:flex;justify-content:space-around;align-items:center;
+  height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
 }
-.btn:hover{background:#f1f5f9}
+.bottom-nav button{
+  flex:1;appearance:none;background:none;border:none;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:11px;color:#475569;padding:4px 0;
+}
+.bottom-nav .material-icons{font-size:24px;color:#0f172a}
 </style>
 </head>
 <body>
@@ -102,13 +104,17 @@ img{display:block;max-width:100%;height:auto}
           </div>
         </div>
       </div>
-
-      <div class="actions">
-        <button id="logout" class="btn">ログアウト</button>
-      </div>
     </section>
   </main>
 </div>
+
+<!-- ボトムナビ -->
+<nav class="bottom-nav">
+  <button><span class="material-icons">home</span></button>
+  <button><span class="material-icons">person</span></button>
+  <button><span class="material-icons">chat</span></button>
+  <button><span class="material-icons">settings</span></button>
+</nav>
 
 <script>
 /** 設定 */
@@ -140,7 +146,6 @@ async function callServer(payload){
     const st = await callServer({ idToken, action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    // ← displayName は使わず、lastName + firstName を優先
     const lastName  = st.lastName || '';
     const firstName = st.firstName || '';
     const fullName  = (lastName + ' ' + firstName).trim() || '会員';
@@ -152,7 +157,6 @@ async function callServer(payload){
     $('badgeStore').textContent  = store;
     $('badgeCode').textContent   = code;
 
-    // プロフィール画像はLINEのを利用（任意）
     const profile = await liff.getProfile().catch(()=>({pictureUrl:''}));
     if(profile.pictureUrl){
       $('avatar').src = profile.pictureUrl;
@@ -165,12 +169,6 @@ async function callServer(payload){
     $('sub').textContent = 'エラー：' + (err?.message||err);
   }
 })();
-
-/** 操作 */
-$('logout').addEventListener('click', ()=>{
-  try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
-  location.replace("./index.html");
-});
 </script>
 </body>
 </html>
