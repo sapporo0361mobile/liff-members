@@ -16,15 +16,20 @@ body{
   display:flex;flex-direction:column
 }
 /* container */
-.header{padding:16px 16px 0;font-weight:800;font-size:18px}
+.header{padding:16px;font-weight:800;font-size:18px}
+.note{
+  background:#fff3cd;color:#663c00;
+  font-size:14px;padding:8px 16px;margin:0;
+  border-bottom:1px solid #ffeeba
+}
 .container{flex:1;max-width:980px;margin:0 auto;padding:12px 16px 80px}
 
-/* パンくず（フォルダ移動用） */
+/* パンくず */
 .breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
 
-/* フォルダ一覧（シンプル） */
+/* フォルダ一覧 */
 .flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px}
 .fitem{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
 .ficon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
@@ -33,31 +38,31 @@ body{
 .ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* 画像：普通の img 表示＋ファイル名ラベル */
-img,video,canvas,svg{max-width:100%;height:auto;display:block}
+/* 画像リスト */
 .img-list{display:flex;flex-direction:column;gap:16px}
 .img-item{
-  position:relative;            /* ← ラベル重ね用 */
+  position:relative;
   background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;
   padding:10px
 }
 .img-item .label{
-  position:absolute;left:14px;top:14px;
+  position:absolute;right:14px;bottom:14px;   /* ← 右下 */
   max-width:calc(100% - 28px);
   font-size:12px;font-weight:700;color:#fff;
-  background:rgba(15,23,42,.7); /* 半透明濃紺 */
+  background:rgba(15,23,42,.7);
   padding:6px 10px;border-radius:999px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  pointer-events:none;          /* 長押し保存の邪魔をしない */
+  pointer-events:none;
 }
+img{max-width:100%;height:auto;display:block;border-radius:8px}
 
-/* 読み込み・空表示 */
+/* loader */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .empty{padding:24px;text-align:center;opacity:.7}
 
-/* bottom nav + 未読バッジ（他ページと統一） */
+/* bottom nav */
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
 .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
@@ -66,19 +71,14 @@ img,video,canvas,svg{max-width:100%;height:auto;display:block}
 </head>
 <body>
   <div class="header">シフト</div>
+  <p class="note">画像は長押し後に「保存」を押すと写真として保存できます</p>
+
   <div class="container">
     <div class="breadcrumb" id="bc"></div>
-
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 
-    <div id="foldersSec">
-      <div id="folders" class="flist"></div>
-    </div>
-
-    <div id="imagesSec">
-      <div id="images" class="img-list"></div>
-    </div>
-
+    <div id="foldersSec"><div id="folders" class="flist"></div></div>
+    <div id="imagesSec"><div id="images" class="img-list"></div></div>
     <div id="empty" class="empty" style="display:none">項目がありません</div>
   </div>
 
@@ -96,21 +96,12 @@ const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxBexOLjluMXHLrsW
 const URL_REGISTER = "./register.html";
 const $ = id => document.getElementById(id);
 
-/* ===== helpers ===== */
 function fmtDate(iso){
   if(!iso) return '';
-  const d = new Date(iso); const z = n=> String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+  const d = new Date(iso); const z=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
 }
-function isImageEntry(f){
-  const mt = (f.mimeType||'').toLowerCase();
-  if(mt.startsWith('image/')) return true;
-  return /\.(png|jpe?g|gif|webp|bmp|heic|heif|tif?f)$/i.test(f.name||'');
-}
-function buildDriveImageUrl(fileId){
-  // 必要に応じて "=s1600" などのサイズ指定を末尾に付けることも可能
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
-}
+function buildDriveImageUrl(fileId){ return `https://lh3.googleusercontent.com/d/${fileId}`; }
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
@@ -118,130 +109,96 @@ async function callServer(payload){
   return j;
 }
 
-/* ===== breadcrumb ===== */
-const trail = []; // [{id,name}]
+/* パンくず */
+const trail=[];
 function renderBreadcrumb(){
-  const bc = $('bc'); bc.innerHTML = '';
+  const bc=$('bc'); bc.innerHTML='';
   if(trail.length===0) return;
   trail.forEach((t,i)=>{
-    const span = document.createElement('span'); span.className = 'bc'; span.textContent = t.name; span.onclick = ()=> jumpTo(i);
+    const span=document.createElement('span'); span.className='bc'; span.textContent=t.name; span.onclick=()=>jumpTo(i);
     bc.appendChild(span);
-    if(i < trail.length-1){ const s=document.createElement('span'); s.className='sep'; s.textContent='›'; bc.appendChild(s); }
+    if(i<trail.length-1){ const s=document.createElement('span'); s.className='sep'; s.textContent='›'; bc.appendChild(s); }
   });
 }
 function jumpTo(index){
-  const target = trail[index];
-  trail.splice(index+1);
-  renderBreadcrumb();
-  loadFolder(target.id, true);
+  const target=trail[index]; trail.splice(index+1);
+  renderBreadcrumb(); loadFolder(target.id,true);
 }
 
-/* ===== folders ===== */
+/* フォルダ */
 function renderFolders(list){
-  const box = $('folders'); box.innerHTML = '';
+  const box=$('folders'); box.innerHTML='';
   if(!list.length){ $('foldersSec').style.display='none'; return; }
   $('foldersSec').style.display='';
   list.forEach(f=>{
-    const el = document.createElement('div'); el.className = 'fitem';
-    el.innerHTML = `
-      <div class="ficon"><span class="material-icons">folder</span></div>
-      <div class="fmeta">
-        <div class="ftitle">${f.name}</div>
-        <div class="fsub">${fmtDate(f.updatedAt||f.createdAt)}</div>
-      </div>`;
-    el.onclick = ()=>{
-      trail.push({id:f.id, name:f.name});
-      renderBreadcrumb();
-      loadFolder(f.id, true);
-    };
+    const el=document.createElement('div'); el.className='fitem';
+    el.innerHTML=`<div class="ficon"><span class="material-icons">folder</span></div>
+                  <div class="fmeta"><div class="ftitle">${f.name}</div>
+                  <div class="fsub">${fmtDate(f.updatedAt||f.createdAt)}</div></div>`;
+    el.onclick=()=>{ trail.push({id:f.id,name:f.name}); renderBreadcrumb(); loadFolder(f.id,true); };
     box.appendChild(el);
   });
 }
 
-/* ===== images：lh3 URL を直接 <img> に埋め込み（全件表示）+ ファイル名ラベル ===== */
-async function renderImages(list){
-  const box = $('images'); box.innerHTML = '';
-  const imgs = (list||[]).filter(isImageEntry);
-
+/* 画像 */
+function renderImages(list){
+  const box=$('images'); box.innerHTML='';
+  const imgs=(list||[]).filter(f=>(f.mimeType||'').startsWith('image/'));
   if(!imgs.length){
     $('imagesSec').style.display='none';
-    $('empty').style.display = ($('folders').children.length===0) ? '' : 'none';
+    $('empty').style.display=($('folders').children.length===0)?'':'none';
     return;
   }
   $('imagesSec').style.display='';
-
   imgs.forEach(f=>{
-    const wrap = document.createElement('div'); wrap.className='img-item';
-
-    // ファイル名ラベル（重ね表示）
-    const label = document.createElement('div');
-    label.className = 'label';
-    label.textContent = f.name || '';
-    label.title = f.name || ''; // 長い場合にツールチップで全名を見せる
+    const wrap=document.createElement('div'); wrap.className='img-item';
+    const label=document.createElement('div'); label.className='label'; label.textContent=f.name||''; label.title=f.name||'';
     wrap.appendChild(label);
-
-    // 画像本体
-    const imgEl = document.createElement('img');
-    imgEl.alt = f.name || 'image';
-    imgEl.src = buildDriveImageUrl(f.id);
-    wrap.appendChild(imgEl);
-
+    const img=document.createElement('img'); img.src=buildDriveImageUrl(f.id); img.alt=f.name||'image';
+    wrap.appendChild(img);
     box.appendChild(wrap);
   });
-
-  $('empty').style.display = 'none';
+  $('empty').style.display='none';
 }
 
-/* ===== load folder ===== */
-async function loadFolder(folderId, showLoading){
+/* 読み込み */
+async function loadFolder(folderId,showLoading){
   try{
     if(showLoading){ $('loader').style.display='flex'; }
-    const res = await callServer({ action:'shiftChildren', idToken: liff.getIDToken(), folderId });
-    renderFolders(res.folders||[]);
-    await renderImages(res.images||[]);
+    const res=await callServer({ action:'shiftChildren', idToken:liff.getIDToken(), folderId });
+    renderFolders(res.folders||[]); renderImages(res.images||[]);
   }catch(e){
-    console.error(e);
-    $('empty').style.display='';
-    $('foldersSec').style.display='none';
-    $('imagesSec').style.display='none';
-  }finally{
-    $('loader').style.display='none';
-  }
+    console.error(e); $('empty').style.display=''; $('foldersSec').style.display='none'; $('imagesSec').style.display='none';
+  }finally{ $('loader').style.display='none'; }
 }
 
-/* ===== init ===== */
+/* 初期化 */
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
-  const st = await callServer({ action:'status', idToken: liff.getIDToken() });
+  const st=await callServer({ idToken:liff.getIDToken(), action:'status' });
   if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-  // ルート（最上位フォルダをパンくずに設定）
-  const root = await callServer({ action:'shiftRoots', idToken: liff.getIDToken() });
-  trail.length = 0;
-  trail.push({ id: root.folder.id, name: root.folder.name });
-  renderBreadcrumb();
-  renderFolders(root.folders||[]);
-  await renderImages(root.images||[]);
+  const root=await callServer({ action:'shiftRoots', idToken:liff.getIDToken() });
+  trail.length=0; trail.push({id:root.folder.id,name:root.folder.name});
+  renderBreadcrumb(); renderFolders(root.folders||[]); renderImages(root.images||[]);
   $('loader').style.display='none';
-
   setupUnreadBadge();
 })();
 
-/* ===== 未読バッジ ===== */
+/* 未読バッジ */
 async function setupUnreadBadge(){
-  const badge = $('chatBadge'); if(!badge) return;
+  const badge=$('chatBadge'); if(!badge) return;
   async function refresh(){
     try{
-      const r = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
-      const n = Number(r.unread||0);
-      if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+      const r=await callServer({ action:'unreadTotal', idToken:liff.getIDToken() });
+      const n=Number(r.unread||0);
+      if(n>0){ badge.textContent=n>99?'99+':n; badge.style.display='inline-block'; }
       else{ badge.style.display='none'; }
     }catch(e){}
   }
-  await refresh();
-  setInterval(refresh, 5000);
-  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
+  await refresh(); setInterval(refresh,5000);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refresh(); });
 }
 </script>
 </body>
