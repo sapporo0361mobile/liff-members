@@ -26,6 +26,17 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
 .empty{padding:24px;text-align:center;opacity:.7}
+
+/* ▼ モーダル（プレビュー） */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100}
+.modal.open{display:flex}
+.viewer{width:96vw;max-width:980px;height:86vh;background:#111;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.vbar{height:48px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;padding:0 10px}
+.vname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto}
+.vbtn{appearance:none;border:1px solid #e5e7eb;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer}
+.vbtn.secondary{background:#fff;color:#0f172a}
+.vwrap{flex:1}
+.vwrap iframe{width:100%;height:100%;border:0;background:#111}
 </style>
 </head>
 <body>
@@ -43,9 +54,21 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
     <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
   </nav>
 
+  <!-- ▼ プレビュー用モーダル -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="PDFプレビュー">
+    <div class="viewer">
+      <div class="vbar">
+        <div id="vname" class="vname">読み込み中…</div>
+        <button id="vsave" class="vbtn">保存</button>
+        <button id="vclose" class="vbtn secondary">閉じる</button>
+      </div>
+      <div class="vwrap"><iframe id="vframe" allow="fullscreen"></iframe></div>
+    </div>
+  </div>
+
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzMOra42LPg49lm1hsNPSO43HIrjvbHvcK8nGXkqt1N2IN8wBud4-orOOjCHXV6zu15Uw/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxf5imSBingw-R5dUCN435TlYyWN8TqGWYTojGExhDs73q9V-QoU4RH2yYmAyT7Zloj6Q/exec";
 const URL_REGISTER = "./register.html";
 const $ = id => document.getElementById(id);
 
@@ -55,7 +78,6 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
-
 function fmtDate(iso){
   if(!iso) return '';
   const d = new Date(iso);
@@ -63,20 +85,14 @@ function fmtDate(iso){
   return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
 }
 
-function render(files, idToken){
+function render(files){
   const box = $('list'); box.innerHTML = '';
-  if(!files.length){
-    box.innerHTML = `<div class="empty">PDFが見つかりません</div>`;
-    return;
-  }
+  if(!files.length){ box.innerHTML = `<div class="empty">PDFが見つかりません</div>`; return; }
   files.forEach(f=>{
-    const a = document.createElement('a');
-    // GASのダウンロードエンドポイント（認証付き）
-    const dl = `${GAS_ENDPOINT}?mode=download&fileId=${encodeURIComponent(f.id)}&idToken=${encodeURIComponent(idToken)}`;
-    a.href = dl;
-    a.className = 'btn';
-    a.textContent = 'ダウンロード';
-    a.setAttribute('download', f.name); // ブラウザによっては保存を促す
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = '表示';
+    btn.onclick = ()=> openPreview(f.id);
 
     const row = document.createElement('div');
     row.className = 'row';
@@ -85,27 +101,61 @@ function render(files, idToken){
         <div class="title">${f.name}</div>
         <div class="path">${f.path || ''}</div>
         <div class="meta">${fmtDate(f.updatedAt)}・${(f.size/1024/1024).toFixed(2)}MB</div>
-      </div>
-    `;
-    row.appendChild(a);
+      </div>`;
+    row.appendChild(btn);
     box.appendChild(row);
   });
 }
+
+/* ▼ プレビュー（Base64→Blob→ObjectURL→iframe） */
+let currentObjectUrl = null;
+async function openPreview(fileId){
+  try{
+    const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
+    if(!res.base64) throw new Error('ファイル取得に失敗しました');
+
+    const bin = Uint8Array.from(atob(res.base64), c => c.charCodeAt(0));
+    const blob = new Blob([bin], { type: 'application/pdf' });
+
+    if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+    currentObjectUrl = URL.createObjectURL(blob);
+
+    $('vframe').src = currentObjectUrl;
+    $('vname').textContent = res.name || 'PDF';
+
+    const saveBtn = $('vsave');
+    saveBtn.onclick = ()=>{
+      const a = document.createElement('a');
+      a.href = currentObjectUrl;
+      a.download = res.name || 'file.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    $('modal').classList.add('open');
+  }catch(e){
+    alert('プレビューに失敗しました：' + (e?.message || e));
+  }
+}
+$('vclose').onclick = ()=>{
+  $('modal').classList.remove('open');
+  $('vframe').src = 'about:blank';
+  if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+};
 
 (async ()=>{
   try{
     await liff.init({ liffId: LIFF_ID });
     if(!liff.isLoggedIn()){ liff.login(); return; }
 
-    // 登録者チェック
     const st = await callServer({ idToken: liff.getIDToken(), action:'status' });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    // 一覧取得
     const res = await callServer({ idToken: liff.getIDToken(), action:'shiftList' });
     $('loader').style.display = 'none';
     $('list').style.display = 'flex';
-    render(res.files || [], liff.getIDToken());
+    render(res.files || []);
   }catch(e){
     console.error(e);
     $('loader').innerHTML = '読み込みに失敗しました';
