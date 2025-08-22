@@ -2,138 +2,86 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>LIFF 最小テスト</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>会員ページ（LIFF）</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    :root{ --bg:#ffffff; --text:#111827; --card:#f8fafc; --brand:#06c755; --muted:#6b7280; }
+    :root{ --bg:#ffffff; --text:#111827; --card:#f8fafc; --brand:#06c755; }
     html,body{height:100%;}
     body{margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", Arial; background:var(--bg); color:var(--text);}
     .wrap{min-height:100dvh; display:grid; place-items:center; padding:24px;}
     .card{width:min(720px, 96vw); background:var(--card); border-radius:20px; box-shadow:0 8px 24px rgba(0,0,0,.08); padding:24px;}
-    .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
-    .btn{appearance:none; border:none; border-radius:12px; padding:12px 16px; font-size:16px; cursor:pointer; background:var(--brand); color:#fff;}
-    .muted{color:var(--muted);}
-    code{background:#eef2ff; padding:2px 6px; border-radius:6px;}
-    #log{white-space:pre-wrap; background:#fff; border-radius:12px; padding:12px; max-height:40vh; overflow:auto; border:1px solid #e5e7eb;}
+    .row{display:flex; gap:16px; align-items:center;}
+    .avatar{width:56px; height:56px; border-radius:50%;}
+    .btn{appearance:none; border:none; border-radius:12px; padding:12px 16px; font-size:16px; cursor:pointer;}
+    .btn-primary{background:var(--brand); color:#fff;}
+    .muted{opacity:.75;}
+    .hidden{display:none;}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1 style="margin:0 0 8px">LIFF 最小テスト</h1>
-      <p class="muted" style="margin:0 0 16px">
-        ① LIFF 単体テスト → プロフィール取得のアラートが出れば LIFF 初期化は成功です。<br>
-        ② GAS 連携テスト → IDトークンをGASへPOST（ヘッダ無し＝プリフライト回避）。
-      </p>
-      <div class="row" style="margin-bottom:12px">
-        <button id="btnLogin" class="btn">① LIFF 単体テスト（ログイン＆プロフィール）</button>
-        <button id="btnServer" class="btn">② GAS 連携テスト（ヘッダ無し）</button>
-        <button id="btnLogout" class="btn" style="background:#9ca3af">ログアウト</button>
+      <h1>会員ページ</h1>
+      <p class="muted">LINEでログインし、会員情報を保存します。</p>
+      <div id="profile" class="row hidden">
+        <img id="picture" class="avatar" alt=""/>
+        <div>
+          <div id="name" style="font-weight:600">—</div>
+          <div id="uid" class="muted" style="font-size:12px">—</div>
+        </div>
       </div>
-      <div class="muted" style="margin-bottom:8px">状態ログ：</div>
-      <div id="log"></div>
+      <div style="height:12px"></div>
+      <div>
+        <button id="logoutBtn" class="btn hidden">ログアウト</button>
+      </div>
+      <div id="status" class="muted" style="margin-top:16px"></div>
     </div>
   </div>
 
 <script>
-  // ーーー 必要箇所を差し替え ーーー
-  const LIFF_ID = "2007972627-vnAq4qbB";                 // 例: 2000000000-xxxxxx
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwr71LUW-0ct60CtPF36Dy5L8U0WwmxMq2cAAUfUgFpeOuGryy-5owjFDBGalY4P9a1VA/exec";  // 例: https://script.google.com/.../exec
-  // ーーーーーーーーーーーーーーーーーー
+  // ← ここを書き換え
+  const LIFF_ID = "2007972627-vnAq4qbB";
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwr71LUW-0ct60CtPF36Dy5L8U0WwmxMq2cAAUfUgFpeOuGryy-5owjFDBGalY4P9a1VA/exec";
 
-  const log = (msg) => {
-    const box = document.getElementById('log');
-    const time = new Date().toLocaleTimeString();
-    box.textContent += `[${time}] ${msg}\n`;
-    box.scrollTop = box.scrollHeight;
-    console.log(msg);
-  };
+  const el = (id)=>document.getElementById(id);
 
-  async function ensureInit(){
-    if (!liff.isInClient()) {
-      // ブラウザでも動くが、LINE内ブラウザのほうが確実
-      log('INFO: LINEアプリ外で実行中（ブラウザ）');
-    }
-    if (!liff.isLoggedIn()) {
-      log('INFO: 未ログイン → liff.login()');
-      liff.login();
-      return false;  // ログイン後に再読み込みが入る
-    }
-    return true;
-  }
-
-  async function testLiffOnly(){
+  async function init(){
     try{
       await liff.init({ liffId: LIFF_ID });
-      log('LIFF init OK');
+      if(!liff.isLoggedIn()){ liff.login(); return; }
 
-      const ok = await ensureInit();
-      if (!ok) return;
-
+      // 表示用プロフィール
       const profile = await liff.getProfile();
-      log('getProfile OK: ' + JSON.stringify({ name: profile.displayName, userIdShort: (profile.userId||'').slice(0,6)+'...' }));
-      alert('LIFF OK!\nこんにちは ' + profile.displayName + ' さん');
-    }catch(err){
-      log('ERROR(testLiffOnly): ' + (err?.message || err));
-      alert('初期化エラー: ' + (err?.message || err));
-    }
-  }
-
-  async function testServer(){
-    try{
-      await liff.init({ liffId: LIFF_ID });
-      log('LIFF init OK (server test)');
-
-      const ok = await ensureInit();
-      if (!ok) return;
-
       const idToken = liff.getIDToken();
-      if(!idToken){
-        log('ERROR: idToken 取得失敗');
-        alert('idToken が取得できませんでした');
-        return;
-      }
-      log('idToken length=' + idToken.length);
 
-      // ★ プリフライト回避のため Content-Type を付けない
-      const res = await fetch(GAS_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify({ idToken })
-      });
+      // サーバへIDトークン送信（ヘッダ無し＝プリフライト回避）
+      const res = await fetch(GAS_ENDPOINT, { method:'POST', body: JSON.stringify({ idToken }) });
+      const text = await res.text();
+      let data = {};
+      try{ data = JSON.parse(text); }catch(e){ data = { ok:false, error:'JSON parse failed' }; }
 
-      // ネットワーク層で落ちるとここまで来ない（Failed to fetch）
-      log('fetch status=' + res.status);
+      if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status + ' ' + text));
 
-      let dataText = '';
-      try { dataText = await res.text(); } catch(e){}
-      log('response text: ' + dataText);
-
-      let data;
-      try { data = JSON.parse(dataText); } catch(e) {
-        data = { ok:false, error: 'JSON parse failed' };
-      }
-
-      if(!res.ok || !data.ok){
-        throw new Error(data.error || ('HTTP ' + res.status));
-      }
-
-      alert('GAS OK!\nuserId: ' + data.userId);
+      // UI 反映
+      el('name').textContent = profile.displayName || data.name || 'ユーザー';
+      el('uid').textContent = 'ID: ' + (data.userId || '(不明)');
+      if(profile.pictureUrl){ el('picture').src = profile.pictureUrl; }
+      el('profile').classList.remove('hidden');
+      el('logoutBtn').classList.remove('hidden');
+      el('status').textContent = 'ログイン済み・スプレッドシートへ保存しました。';
     }catch(err){
-      log('ERROR(testServer): ' + (err?.message || err));
-      alert('GAS 連携エラー: ' + (err?.message || err));
+      console.error(err);
+      el('status').textContent = '初期化エラー: ' + (err?.message || err);
     }
   }
 
-  document.getElementById('btnLogin').addEventListener('click', testLiffOnly);
-  document.getElementById('btnServer').addEventListener('click', testServer);
-  document.getElementById('btnLogout').addEventListener('click', ()=>{
-    try{
-      if(liff.isLoggedIn()) liff.logout();
-    }catch(e){}
+  el('logoutBtn').addEventListener('click', ()=>{
+    try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
     location.reload();
   });
+
+  init();
 </script>
 </body>
 </html>
