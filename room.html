@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>トーク</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow:hidden}
@@ -13,6 +14,9 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .back{appearance:none;border:none;background:none;font-size:16px;cursor:pointer;padding:8px}
 .title{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:12px;opacity:.7}
+.header-right{margin-left:auto;position:relative;display:flex;align-items:center}
+.header-right a{display:inline-flex;align-items:center;gap:4px;color:#0f172a;text-decoration:none;padding:6px}
+.badge-dot{position:absolute;right:0;top:0;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none;transform:translate(30%,-30%)}
 .chat{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
 .msg{max-width:80%;padding:8px 12px;border-radius:14px;word-break:break-word}
 .me{align-self:flex-end;background:#dcfce7;border:1px solid rgba(2,6,23,.1)}
@@ -34,6 +38,10 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
     <div class="title" id="peerName">読み込み中…</div>
     <div class="sub" id="peerSub"></div>
   </div>
+  <div class="header-right">
+    <a href="./contacts.html" title="チャット一覧"><span class="material-icons">chat</span></a>
+    <span class="badge-dot" id="chatBadge"></span>
+  </div>
 </div>
 
 <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
@@ -46,7 +54,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxf5imSBingw-R5dUCN435TlYyWN8TqGWYTojGExhDs73q9V-QoU4RH2yYmAyT7Zloj6Q/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
 
 const $ = (id)=>document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -112,7 +120,7 @@ async function loadOnce(showLoading=false){
 
 async function startPolling(){
   if(pollTimer){ clearInterval(pollTimer); }
-  await loadOnce(true);              // 初回表示はスピナー
+  await loadOnce(true);
   pollTimer = setInterval(loadOnce, 2000);
 }
 
@@ -124,15 +132,30 @@ async function sendOnce(){
     sending = true; btn.disabled = true;
     await callServer({ action:'send', idToken: liff.getIDToken(), roomId, text });
     input.value = '';
-    await loadOnce(); // サーバ反映後だけ描画（連投防止）
+    await loadOnce();
   }catch(e){ alert('送信に失敗しました: ' + (e?.message || e)); }
   finally{ sending = false; btn.disabled = false; }
 }
-
 $('send').addEventListener('click', sendOnce);
 $('text').addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendOnce(); } });
 $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href='./contacts.html'; };
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && roomId) loadOnce(); });
+
+/* ▼ ヘッダーの未読バッジ */
+async function setupUnreadBadge(){
+  const badge = $('chatBadge'); if(!badge) return;
+  async function refresh(){
+    try{
+      const r = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
+      const n = Number(r.unread||0);
+      if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+      else{ badge.style.display='none'; }
+    }catch(e){}
+  }
+  await refresh();
+  setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
+}
 
 (async ()=>{
   if(!otherUserId){ alert('相手が指定されていません'); location.replace('./contacts.html'); return; }
@@ -151,6 +174,8 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 
   seen.clear(); since = null; $('chat').innerHTML = '';
   startPolling();
+
+  setupUnreadBadge();
 })();
 </script>
 </body>
