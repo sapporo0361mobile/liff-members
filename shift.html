@@ -10,34 +10,47 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow-x:hidden}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
+
+/* Header & container */
 .header{padding:16px 16px 0;font-weight:800;font-size:18px}
 .container{flex:1;max-width:980px;margin:0 auto;padding:12px 16px 80px}
-.section-title{font-weight:800;margin:8px 0 6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
-.icon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
-.icon .material-icons{font-size:22px;color:#0f172a}
-.meta{min-width:0;display:flex;flex-direction:column;gap:2px}
-.title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.loader{display:flex;justify-content:center;align-items:center;padding:24px}
-.spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
-@keyframes sp{to{transform:rotate(360deg)}}
-.empty{padding:24px;text-align:center;opacity:.7}
+
+/* Breadcrumb */
 .breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
 
-/* ▼ モーダル（プレビュー画像） */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
-.modal.open{display:flex}
-.viewer{width:96vw;max-width:980px;height:86vh;background:#111;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-.vbar{height:48px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;padding:0 10px}
-.vname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto}
-.vbtn{appearance:none;border:1px solid #e5e7eb;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer}
-.vbtn.secondary{background:#fff;color:#0f172a}
-.vwrap{flex:1;display:flex;align-items:center;justify-content:center;background:#111}
-.vwrap img{max-width:100%;max-height:100%;object-fit:contain}
+/* Sections */
+.section-title{font-weight:800;margin:8px 0 6px}
+
+/* Folder list */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.fcard{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
+.ficon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
+.ficon .material-icons{font-size:22px;color:#0f172a}
+.fmeta{min-width:0;display:flex;flex-direction:column;gap:2px}
+.ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Image grid (embedded images) */
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.icard{position:relative;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:hidden}
+.thumb{width:100%;aspect-ratio:4/3;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
+.thumb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.imeta{padding:10px 10px 12px}
+.ititle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.isub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+
+/* Save button on card */
+.savebtn{position:absolute;right:8px;top:8px;appearance:none;border:1px solid rgba(2,6,23,.18);background:#ffffffd9;backdrop-filter:saturate(1.2) blur(2px);
+  color:#0f172a;border-radius:999px;cursor:pointer;padding:6px 10px;font-size:12px;display:flex;align-items:center;gap:4px}
+.savebtn .material-icons{font-size:16px}
+
+/* Misc */
+.loader{display:flex;justify-content:center;align-items:center;padding:24px}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{padding:24px;text-align:center;opacity:.7}
 
 /* bottom nav + 未読バッジ（他ページと統一） */
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
@@ -54,12 +67,12 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 
     <div id="foldersSec">
       <div class="section-title">フォルダ</div>
-      <div id="folders" class="grid"></div>
+      <div id="folders" class="fgrid"></div>
     </div>
 
     <div id="imagesSec" style="margin-top:12px">
       <div class="section-title">シフト画像</div>
-      <div id="images" class="grid"></div>
+      <div id="images" class="igrid"></div>
     </div>
 
     <div id="empty" class="empty" style="display:none">項目がありません</div>
@@ -73,34 +86,37 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
     <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
   </nav>
 
-  <!-- ▼ プレビュー -->
-  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="シフト画像プレビュー">
-    <div class="viewer">
-      <div class="vbar">
-        <div id="vname" class="vname">読み込み中…</div>
-        <button id="vsave" class="vbtn">保存</button>
-        <button id="vclose" class="vbtn secondary">閉じる</button>
-      </div>
-      <div class="vwrap"><img id="vimg" alt=""></div>
-    </div>
-  </div>
-
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
 const URL_REGISTER = "./register.html";
 const $ = id => document.getElementById(id);
 
-// パンくず
+/* ===== helpers ===== */
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso); const z = n=> String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function isImageEntry(f){
+  const mt = (f.mimeType||'').toLowerCase();
+  if(mt.startsWith('image/')) return true;
+  return /\.(png|jpe?g|gif|webp|bmp|heic|heif|tif?f)$/i.test(f.name||'');
+}
+async function callServer(payload){
+  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
+  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+
+/* ===== breadcrumb ===== */
 const trail = []; // [{id,name}]
 function renderBreadcrumb(){
   const bc = $('bc'); bc.innerHTML = '';
   if(trail.length===0) return;
   trail.forEach((t,i)=>{
-    const span = document.createElement('span');
-    span.className = 'bc';
-    span.textContent = t.name;
-    span.onclick = ()=> jumpTo(i);
+    const span = document.createElement('span'); span.className = 'bc'; span.textContent = t.name; span.onclick = ()=> jumpTo(i);
     bc.appendChild(span);
     if(i < trail.length-1){ const s=document.createElement('span'); s.className='sep'; s.textContent='›'; bc.appendChild(s); }
   });
@@ -112,35 +128,18 @@ function jumpTo(index){
   loadFolder(target.id, true);
 }
 
-function fmtDate(iso){
-  if(!iso) return '';
-  const d = new Date(iso);
-  const z = n=> String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
-}
-function fmtMB(bytes){
-  return (bytes/1024/1024).toFixed(2) + 'MB';
-}
-
-async function callServer(payload){
-  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
-  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
-  return j;
-}
-
+/* ===== folders ===== */
 function renderFolders(list){
   const box = $('folders'); box.innerHTML = '';
   if(!list.length){ $('foldersSec').style.display='none'; return; }
   $('foldersSec').style.display='';
   list.forEach(f=>{
-    const el = document.createElement('div');
-    el.className = 'card';
+    const el = document.createElement('div'); el.className = 'fcard';
     el.innerHTML = `
-      <div class="icon"><span class="material-icons">folder</span></div>
-      <div class="meta">
-        <div class="title">${f.name}</div>
-        <div class="sub">${fmtDate(f.updatedAt)}</div>
+      <div class="ficon"><span class="material-icons">folder</span></div>
+      <div class="fmeta">
+        <div class="ftitle">${f.name}</div>
+        <div class="fsub">${fmtDate(f.updatedAt||f.createdAt)}</div>
       </div>`;
     el.onclick = ()=>{
       trail.push({id:f.id, name:f.name});
@@ -151,82 +150,85 @@ function renderFolders(list){
   });
 }
 
+/* ===== images (embedded) ===== */
+let io; // IntersectionObserver
+function ensureObserver(){
+  if(io) return io;
+  io = new IntersectionObserver(entries=>{
+    entries.forEach(async entry=>{
+      if(!entry.isIntersecting) return;
+      const card = entry.target;
+      if(card.dataset.loaded === '1') return;
+      card.dataset.loaded = '1';
+      const fileId = card.dataset.fileId;
+      try{
+        const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
+        if(!(res.mimeType||'').startsWith('image/')) throw new Error('not image');
+        const dataUrl = `data:${res.mimeType};base64,${res.base64}`;
+        const img = card.querySelector('img');
+        img.src = dataUrl;
+        img.alt = res.name || card.dataset.name || 'image';
+        // 保存ハンドラ
+        card.querySelector('.savebtn').onclick = ()=> saveDataUrl(res.name || 'image', dataUrl);
+        // 長押し・右クリックで保存
+        setupPressSave(img, ()=> saveDataUrl(res.name || 'image', dataUrl));
+      }catch(e){
+        const img = card.querySelector('img');
+        img.alt = '読み込み失敗';
+        img.style.opacity = .5;
+      }finally{
+        io.unobserve(card);
+      }
+    });
+  }, { root:null, threshold:.1 });
+  return io;
+}
+
 function renderImages(list){
   const box = $('images'); box.innerHTML = '';
-  if(!list.length){ $('imagesSec').style.display='none'; } else { $('imagesSec').style.display=''; }
-  list.forEach(f=>{
-    const el = document.createElement('div');
-    el.className = 'card';
+  const imgs = (list||[]).filter(isImageEntry);
+  if(!imgs.length){ $('imagesSec').style.display='none'; } else { $('imagesSec').style.display=''; }
+  const obs = ensureObserver();
+
+  imgs.forEach(f=>{
+    const el = document.createElement('div'); el.className = 'icard';
+    el.dataset.fileId = f.id; el.dataset.name = f.name; el.dataset.loaded = '0';
     el.innerHTML = `
-      <div class="icon"><span class="material-icons">image</span></div>
-      <div class="meta">
-        <div class="title">${f.name}</div>
-        <div class="sub">${fmtDate(f.updatedAt)}・${fmtMB(f.size)}</div>
+      <button class="savebtn" aria-label="保存"><span class="material-icons">download</span><span>保存</span></button>
+      <div class="thumb">
+        <img alt="読み込み中…" />
+      </div>
+      <div class="imeta">
+        <div class="ititle" title="${f.name}">${f.name}</div>
+        <div class="isub">${fmtDate(f.updatedAt||f.createdAt)}</div>
       </div>`;
-    el.onclick = ()=> openPreview(f.id, f.name);
     box.appendChild(el);
+    obs.observe(el);
   });
-  $('empty').style.display = (!list.length && $('folders').children.length===0) ? '' : 'none';
+
+  $('empty').style.display = (!imgs.length && $('folders').children.length===0) ? '' : 'none';
 }
 
-/* ▼ プレビュー（Data URL で埋め込み） */
-let currentDataUrl = null;
-let currentName = 'image';
-async function openPreview(fileId, name){
-  try{
-    const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
-    if(!res.base64) throw new Error('ファイル取得に失敗しました');
-    if(!(res.mimeType||'').startsWith('image/')) throw new Error('画像ではありません');
-
-    currentName = res.name || name || 'image';
-    currentDataUrl = `data:${res.mimeType};base64,${res.base64}`;
-
-    $('vname').textContent = currentName;
-    $('vimg').src = currentDataUrl;       // ← Data URL を直接埋め込み
-    $('vimg').alt = currentName;
-    $('modal').classList.add('open');
-
-    $('vsave').onclick = saveCurrentImage;
-  }catch(e){
-    alert('プレビューに失敗しました：' + (e?.message || e));
-  }
-}
-$('vclose').onclick = ()=>{
-  $('modal').classList.remove('open');
-  $('vimg').src = '';
-  currentDataUrl = null;
-};
-
-/* ▼ 画像の保存（ボタン／長押し／右クリック対応） */
-function saveCurrentImage(){
-  if(!currentDataUrl) return;
+/* 保存共通 */
+function saveDataUrl(name, dataUrl){
   const a = document.createElement('a');
   if('download' in a){
-    a.href = currentDataUrl;
-    a.download = currentName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.href = dataUrl; a.download = name || 'image';
+    document.body.appendChild(a); a.click(); a.remove();
   }else{
-    // iOS Safari/LINE など download 属性が使えない環境は新規タブで開いて長押し保存
-    window.open(currentDataUrl, '_blank');
+    window.open(dataUrl, '_blank'); // iOS Safari/LINE など
   }
 }
-// 長押し検知（モバイル）
-(function setupLongPress(){
-  const img = $('vimg');
-  let timer=null;
-  const LONG=600; // ms
+function setupPressSave(img, handler){
+  let timer=null; const LONG=600;
   const clear=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
-
-  img.addEventListener('touchstart', ()=>{ clear(); timer=setTimeout(saveCurrentImage, LONG); }, {passive:true});
+  img.addEventListener('touchstart', ()=>{ clear(); timer=setTimeout(handler, LONG); }, {passive:true});
   img.addEventListener('touchend', clear, {passive:true});
   img.addEventListener('touchmove', clear, {passive:true});
-  // 右クリック（PC）
-  img.addEventListener('contextmenu', (e)=>{ e.preventDefault(); saveCurrentImage(); });
-})();
+  img.addEventListener('contextmenu', (e)=>{ e.preventDefault(); handler(); });
+}
 
-/* ▼ 読み込み */
+/* ===== load folder ===== */
 async function loadFolder(folderId, showLoading){
   try{
     if(showLoading){ $('loader').style.display='flex'; }
@@ -243,13 +245,14 @@ async function loadFolder(folderId, showLoading){
   }
 }
 
+/* ===== init ===== */
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
   const st = await callServer({ action:'status', idToken: liff.getIDToken() });
   if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-  // ルート
+  // ルート（最上位フォルダをパンくずに設定）
   const root = await callServer({ action:'shiftRoots', idToken: liff.getIDToken() });
   trail.length = 0;
   trail.push({ id: root.folder.id, name: root.folder.name });
