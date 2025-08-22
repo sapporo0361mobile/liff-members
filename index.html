@@ -54,8 +54,8 @@ async function callServer(payload){
     msg("登録状況を確認中…");
     const idToken = liff.getIDToken();
     const st = await callServer({ idToken, action:"status" });
-    if(st.bound){ msg("登録済みです。会員ページへ…"); location.replace(URL_HOME); }
-    else{ msg("未登録です。会員登録ページへ…"); location.replace(URL_REGISTER); }
+    if(st.bound){ msg("登録済みです。登録済みページへ…"); location.replace(URL_HOME); }
+    else{ msg("未登録です。初回利用登録ページへ…"); location.replace(URL_REGISTER); }
   }catch(err){
     console.error(err); msg("エラー："+(err?.message||err));
   }
