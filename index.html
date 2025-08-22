@@ -20,20 +20,22 @@
     </div>
   </div></div>
 
+<!-- 差分のみ（スクリプト部） -->
 <script>
-  // ← 差し替え
   const LIFF_ID = "2007972627-vnAq4qbB";
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbygU1M9ZVUPa5qyTYreyh3a1yu3ex3bmHZ9au-Z7cdGOYCGKlrCvTpyTF9fHSCxDe8SYA/exec";
-  const MEMBER_HOME_URL = "./home.html"; // 紐づけ済みの会員ホーム
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbx1jhzy4oOQO2mxWsOWBSVPhzmdOlJSCUGsmHkBElPa3eFPGubxN8wtNfQo42ju5svxlA/exec";
+  const MEMBER_HOME_URL = "./home.html";
 
   const $ = (id)=>document.getElementById(id);
+  const qs = new URLSearchParams(location.search);
+  const DEBUG = qs.get('debug') === '1';
 
   async function callServer(payload){
     const res = await fetch(GAS_ENDPOINT, { method:'POST', body: JSON.stringify(payload) });
-    const text = await res.text();
-    let data={}; try{ data=JSON.parse(text);}catch(e){ data={ok:false,error:'JSON parse failed'} }
-    if(!res.ok || !data.ok) throw new Error(data.error||('HTTP '+res.status+' '+text));
-    return data;
+    const t = await res.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:'JSON parse failed',raw:t}; }
+    if(DEBUG) console.log('status raw:', t);
+    if(!res.ok || !j.ok) throw new Error(j.error||('HTTP '+res.status+' '+t));
+    return j;
   }
 
   async function init(){
@@ -42,25 +44,31 @@
       if(!liff.isLoggedIn()){ liff.login(); return; }
       const idToken = liff.getIDToken();
 
-      // 紐づけ状態確認
       const status = await callServer({ idToken, action:'status' });
 
-      if(status.bound){
-        // すでに紐づけ済み → 入口では何も見せずホームへ
-        $('status').textContent = 'ログイン済みです。ホームへ移動します…';
-        location.replace(MEMBER_HOME_URL); // ← 履歴を残さない遷移
+      if (status.bound === true && !DEBUG) {
+        // ここだけでホームへ遷移（DEBUG=1 の時は遷移せず中身を確認できる）
+        $('status').textContent = 'ログイン済み → ホームへ移動します…';
+        location.replace(MEMBER_HOME_URL + '?from=index');
         return;
       }
 
-      // 未紐づけ（ここに前回のフォームを出す場合）
+      // 未紐づけ：フォームを見せる（ここにあなたの既存フォームを表示）
       $('status').textContent = '未紐づけです。登録を行ってください。';
-      $('bindArea').style.display = 'block';
+      document.getElementById('bindArea').style.display = 'block';
+
+      if(DEBUG){
+        const pre = document.createElement('pre');
+        pre.textContent = 'DEBUG status = ' + JSON.stringify(status,null,2);
+        document.body.appendChild(pre);
+      }
     }catch(err){
       console.error(err);
-      $('status').textContent = 'エラー：'+(err?.message||err);
+      $('status').textContent = 'エラー：' + (err?.message||err);
     }
   }
   init();
 </script>
+
 </body>
 </html>
