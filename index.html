@@ -6,7 +6,7 @@
 <title>読み込み中…</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-/* --- Anti-Overflow Patch (共通) --- */
+/* --- Anti-Overflow Patch --- */
 *,*::before,*::after{box-sizing:border-box}
 html,body{width:100%;height:100%;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
@@ -16,9 +16,15 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans J
   padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
 img,video,canvas,svg{max-width:100%;height:auto;display:block}
 
-/* register.html と同じ外枠 */
+/* register と同じ外枠 */
 .container{width:100%;max-width:720px;margin:0 auto;padding:0 16px}
-.center{display:grid;place-items:center;min-height:60dvh}
+.center{
+  display:flex;
+  justify-content:center; /* 横中央 */
+  align-items:center;     /* 縦中央 */
+  min-height:60dvh;
+  text-align:center;      /* 内部テキストも中央寄せ */
+}
 .card{
   width:100%;
   max-width:100%;
@@ -26,9 +32,16 @@ img,video,canvas,svg{max-width:100%;height:auto;display:block}
   border-radius:16px;
   padding:24px;
   background:#fff;
-  text-align:center;    /* ★中央寄せに追加 */
+  text-align:center; /* 念のため残す */
 }
-.spin{width:32px;height:32px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:#06c755;animation:sp 1s linear infinite;margin:12px auto}
+.spin{
+  width:32px;height:32px;
+  border-radius:50%;
+  border:3px solid #e5e7eb;
+  border-top-color:#06c755;
+  animation:sp 1s linear infinite;
+  margin:12px auto;
+}
 @keyframes sp{to{transform:rotate(360deg)}}
 .muted{opacity:.75}
 </style>
@@ -39,7 +52,7 @@ img,video,canvas,svg{max-width:100%;height:auto;display:block}
     <div class="center">
       <div class="card" role="status" aria-live="polite">
         <div class="spin"></div>
-        <h1 style="margin:8px 0 4px">読み込み中…</h1>
+        <h1 style="margin:8px 0 4px;">読み込み中…</h1>
         <div id="msg" class="muted">登録状況を確認中…</div>
       </div>
     </div>
