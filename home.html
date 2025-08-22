@@ -1,119 +1,87 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <title>会員ページ</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    /* --- Anti-Overflow Patch --- */
-*,
-*::before,
-*::after { box-sizing: border-box; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>会員ページ</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+/* --- Anti-Overflow Patch (共通) --- */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;overflow-x:hidden}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;background:#fff;color:#111}
+.wrap{min-height:100svh;min-height:100dvh;width:100%;
+  padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+  padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
+img,video,canvas,svg{max-width:100%;height:auto;display:block}
 
-html, body { width: 100%; height: 100%; overflow-x: hidden; }
-
-html { -webkit-text-size-adjust: 100%; }
-
-body { margin: 0; }
-
-.wrap {
-  /* 100vh のバグ回避（モバイルのアドレスバー分を考慮） */
-  min-height: 100svh;   /* iOS16+ / Android */
-  min-height: 100dvh;   /* 端末の実表示高 */
-  width: 100%;          /* 100vw はスクロールバー幅で溢れることがある */
-  overflow-x: hidden;
-}
-
-/* 画像・埋め込みのはみ出し禁止 */
-img, video, canvas, svg { max-width: 100%; height: auto; display: block; }
-
-/* Flex行で右側が長いときのはみ出し対策 */
-.row { min-width: 0; }
-.row > .key { flex: 0 0 auto; }
-.row > .val {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow-wrap: anywhere;  /* 長いIDや英数字を強制改行 */
-  word-break: break-word;
-}
-
-/* セレクトや入力のはみ出し対策 */
-.fld input, .fld select { width: 100%; max-width: 100%; }
-
-/* QRやカード枠のはみ出し対策 */
-.qr { max-width: 100%; }
-.card { width: 100%; max-width: 100%; }
-
-/* 安全領域は padding だけに。幅は100%を維持 */
-.wrap {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-top: calc(env(safe-area-inset-top) + 8px);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
-}
-
-    :root{--border:#e5e7eb}
-    html,body{height:100%} body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;background:#fff}
-    .wrap{min-height:100dvh;display:flex;flex-direction:column;padding:16px}
-    .card{margin:0 auto;width:min(720px,96vw);border:1px solid var(--border);border-radius:16px;padding:16px}
-    h1{margin:0 0 8px}
-    .rows{display:grid;gap:10px}
-    .row{display:flex;justify-content:space-between;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fff}
-    .key{opacity:.75}
-    .actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end}
-    .btn{appearance:none;border:1px solid var(--border);border-radius:12px;padding:10px 14px;background:#fff;cursor:pointer}
-  </style>
+/* --- layout --- */
+.container{width:100%;max-width:720px;margin:0 auto;padding:0 16px}
+.card{width:100%;max-width:100%;border:1px solid #e5e7eb;border-radius:16px;padding:16px;background:#fff}
+h1{margin:0 0 8px}
+.muted{opacity:.75}
+.rows{display:grid;gap:10px}
+.row{display:flex;justify-content:space-between;align-items:center;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;background:#fff;min-width:0}
+.key{flex:0 0 auto;opacity:.75}
+.val{flex:1 1 auto;min-width:0;text-align:right;overflow-wrap:anywhere;word-break:break-word}
+.actions{margin-top:12px;display:flex;gap:10px;justify-content:flex-end}
+.btn{appearance:none;border:1px solid #e5e7eb;border-radius:12px;padding:10px 14px;background:#fff;cursor:pointer}
+</style>
 </head>
 <body>
-  <div class="wrap"><div class="card">
-    <h1>会員ページ</h1>
-    <div id="sub" style="opacity:.75">読み込み中…</div>
-    <div class="rows" id="rows" style="display:none">
-      <div class="row"><div class="key">所属店舗</div><div id="v_store">—</div></div>
-      <div class="row"><div class="key">職員コード</div><div id="v_code">—</div></div>
-      <div class="row"><div class="key">氏名</div><div id="v_name">—</div></div>
+<div class="wrap">
+  <div class="container">
+    <div class="card">
+      <h1>会員ページ</h1>
+      <div id="sub" class="muted">読み込み中…</div>
+      <div class="rows" id="rows" style="display:none">
+        <div class="row"><div class="key">所属店舗</div><div class="val" id="v_store">—</div></div>
+        <div class="row"><div class="key">職員コード</div><div class="val" id="v_code">—</div></div>
+        <div class="row"><div class="key">氏名</div><div class="val" id="v_name">—</div></div>
+      </div>
+      <div class="actions"><button id="logout" class="btn">ログアウト</button></div>
     </div>
-    <div class="actions"><button id="logout" class="btn">ログアウト</button></div>
-  </div></div>
+  </div>
+</div>
 
 <script>
-  const LIFF_ID = "2007972627-vnAq4qbB";
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycby042IR537_dOHo0XTri9kTgdwZVRQQFO_vIJuFLW3_gSkmWQYoVqx0vBFxuDSTAxZajQ/exec"; // ← 差し替え
-  const URL_REGISTER = "./register.html";
+const LIFF_ID = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycby042IR537_dOHo0XTri9kTgdwZVRQQFO_vIJuFLW3_gSkmWQYoVqx0vBFxuDSTAxZajQ/exec"; // ← 差し替え
+const URL_REGISTER = "./register.html";
 
-  const $ = (id)=>document.getElementById(id);
+const $ = (id)=>document.getElementById(id);
 
-  async function callServer(payload){
-    const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
-    const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-    if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
-    return j;
+async function callServer(payload){
+  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
+  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+
+(async ()=>{
+  try{
+    await liff.init({ liffId: LIFF_ID });
+    if(!liff.isLoggedIn()){ liff.login(); return; }
+    const idToken = liff.getIDToken();
+
+    const st = await callServer({ idToken, action:"status" });
+    if(!st.bound){ location.replace(URL_REGISTER); return; }
+
+    $('v_store').textContent = st.store || '(未登録)';
+    $('v_code').textContent  = st.staffCode || '(未登録)';
+    $('v_name').textContent  = st.displayName || '会員';
+    $('rows').style.display = '';
+    $('sub').textContent = 'ようこそ！';
+  }catch(err){
+    console.error(err); $('sub').textContent = 'エラー：'+(err?.message||err);
   }
+})();
 
-  (async ()=>{
-    try{
-      await liff.init({ liffId: LIFF_ID });
-      if(!liff.isLoggedIn()){ liff.login(); return; }
-      const idToken = liff.getIDToken();
-
-      const st = await callServer({ idToken, action:"status" });
-      if(!st.bound){ location.replace(URL_REGISTER); return; }
-
-      $('v_store').textContent = st.store || '(未登録)';
-      $('v_code').textContent  = st.staffCode || '(未登録)';
-      $('v_name').textContent  = st.displayName || '会員';
-      $('rows').style.display = '';
-      $('sub').textContent = 'ようこそ！';
-    }catch(err){
-      console.error(err); $('sub').textContent = 'エラー：'+(err?.message||err);
-    }
-  })();
-
-  $('logout').addEventListener('click', ()=>{
-    try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
-    location.replace("./index.html");
-  });
+$('logout').addEventListener('click', ()=>{
+  try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
+  location.replace("./index.html");
+});
 </script>
 </body>
 </html>
