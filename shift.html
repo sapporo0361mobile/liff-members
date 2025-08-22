@@ -9,34 +9,37 @@
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow-x:hidden}
-body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
-
-/* Header & container */
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:#f6f8fc;color:#0f172a;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
+  display:flex;flex-direction:column
+}
+/* container */
 .header{padding:16px 16px 0;font-weight:800;font-size:18px}
 .container{flex:1;max-width:980px;margin:0 auto;padding:12px 16px 80px}
 
-/* Breadcrumb */
+/* パンくず（フォルダ移動用） */
 .breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
 
-/* Folder list */
-.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px}
-.fcard{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
+/* フォルダ一覧（シンプル） */
+.flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px}
+.fitem{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
 .ficon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
 .ficon .material-icons{font-size:22px;color:#0f172a}
 .fmeta{min-width:0;display:flex;flex-direction:column;gap:2px}
 .ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Image grid (embedded images directly) */
-.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.icard{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:hidden}
-.thumb{width:100%;background:#000;display:flex;align-items:center;justify-content:center;min-height:180px}
-.thumb img{width:100%;height:auto;display:block;object-fit:contain;background:#111}
-.imeta{padding:8px 10px;border-top:1px solid rgba(2,6,23,.06);font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 画像：home.html と同じ“普通の img”挙動（枠なし・そのまま） */
+img,video,canvas,svg{max-width:100%;height:auto;display:block}
+.img-list{display:flex;flex-direction:column;gap:16px}
+.img-item{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px}
+.img-item img{width:100%;height:auto;display:block}
 
-/* Misc */
+/* 読み込み・空表示 */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -56,14 +59,14 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 
-    <!-- フォルダのみ（見出しなし） -->
+    <!-- フォルダ（見出しなし／シンプル） -->
     <div id="foldersSec">
-      <div id="folders" class="fgrid"></div>
+      <div id="folders" class="flist"></div>
     </div>
 
-    <!-- 画像（見出しなし） -->
+    <!-- 画像（そのまま img を縦並びで全部表示） -->
     <div id="imagesSec">
-      <div id="images" class="igrid"></div>
+      <div id="images" class="img-list"></div>
     </div>
 
     <div id="empty" class="empty" style="display:none">項目がありません</div>
@@ -125,7 +128,7 @@ function renderFolders(list){
   if(!list.length){ $('foldersSec').style.display='none'; return; }
   $('foldersSec').style.display='';
   list.forEach(f=>{
-    const el = document.createElement('div'); el.className = 'fcard';
+    const el = document.createElement('div'); el.className = 'fitem';
     el.innerHTML = `
       <div class="ficon"><span class="material-icons">folder</span></div>
       <div class="fmeta">
@@ -141,7 +144,7 @@ function renderFolders(list){
   });
 }
 
-/* ===== images (ALL eager load & embed) ===== */
+/* ===== images：すべて最初から“普通の <img>”で表示 ===== */
 async function renderImages(list){
   const box = $('images'); box.innerHTML = '';
   const imgs = (list||[]).filter(isImageEntry);
@@ -153,29 +156,25 @@ async function renderImages(list){
   }
   $('imagesSec').style.display='';
 
-  // すべての画像を最初から取得して Data URL で埋め込み表示
+  // 全件取得→Data URL を <img src> に直指定
   const tasks = imgs.map(async f=>{
-    const wrap = document.createElement('div'); wrap.className='icard';
-    wrap.innerHTML = `
-      <div class="thumb"><img alt="読み込み中…" /></div>
-      <div class="imeta" title="${f.name}">${f.name}　${fmtDate(f.updatedAt||f.createdAt)}</div>`;
+    const wrap = document.createElement('div'); wrap.className='img-item';
+    const imgEl = document.createElement('img');
+    imgEl.alt = f.name || 'image';
+    wrap.appendChild(imgEl);
     box.appendChild(wrap);
 
     try{
       const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId: f.id });
       if(!(res.mimeType||'').startsWith('image/')) throw new Error('not image');
-      const dataUrl = `data:${res.mimeType};base64,${res.base64}`;
-      const img = wrap.querySelector('img');
-      img.src = dataUrl;
-      img.alt = res.name || f.name || 'image';
+      imgEl.src = `data:${res.mimeType};base64,${res.base64}`;
+      imgEl.alt = res.name || f.name || 'image';
     }catch(e){
-      const img = wrap.querySelector('img');
-      img.alt = '読み込み失敗';
-      img.style.opacity = .5;
+      imgEl.alt = '読み込みに失敗しました';
+      imgEl.style.opacity = .5;
     }
   });
 
-  // 全件完了を待ってから空表示の制御（“表示域以外も全て表示”のため待機）
   await Promise.all(tasks);
   $('empty').style.display = 'none';
 }
@@ -186,7 +185,7 @@ async function loadFolder(folderId, showLoading){
     if(showLoading){ $('loader').style.display='flex'; }
     const res = await callServer({ action:'shiftChildren', idToken: liff.getIDToken(), folderId });
     renderFolders(res.folders||[]);
-    await renderImages(res.images||[]); // ← 全件 eager load
+    await renderImages(res.images||[]);
   }catch(e){
     console.error(e);
     $('empty').style.display='';
@@ -210,7 +209,7 @@ async function loadFolder(folderId, showLoading){
   trail.push({ id: root.folder.id, name: root.folder.name });
   renderBreadcrumb();
   renderFolders(root.folders||[]);
-  await renderImages(root.images||[]); // ← 初期表示も全件 eager load
+  await renderImages(root.images||[]);
   $('loader').style.display='none';
 
   setupUnreadBadge();
