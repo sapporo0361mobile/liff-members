@@ -6,7 +6,7 @@
 <title>会員ページ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-/* ===== はみ出し防止・ライト固定 ===== */
+/* ===== 基本設定（ライト固定 & はみ出し防止） ===== */
 *,*::before,*::after{box-sizing:border-box}
 html,body{width:100%;height:100%;overflow-x:hidden}
 html{-webkit-text-size-adjust:100%}
@@ -14,7 +14,7 @@ body{
   margin:0;background:#f6f8fc;color:#0f172a;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial
 }
-img,svg{display:block;max-width:100%;height:auto}
+img{display:block;max-width:100%;height:auto}
 
 /* ===== レイアウト ===== */
 .page{
@@ -25,7 +25,7 @@ img,svg{display:block;max-width:100%;height:auto}
 }
 .container{width:100%;max-width:880px;margin:0 auto;padding:0 16px}
 
-/* ===== ヘッダー（ライト） ===== */
+/* ===== ヘッダー ===== */
 .hero{
   background:linear-gradient(135deg,#dbeafe 0%, #ecfeff 50%, #def7ec 100%);
   color:#0f172a; border-radius:0 0 24px 24px;
@@ -36,7 +36,7 @@ img,svg{display:block;max-width:100%;height:auto}
 .hero h1{margin:0;font-size:clamp(20px,4.6vw,28px)}
 .subtitle{opacity:.75;margin-top:4px}
 
-/* ===== メイン（プロフィールカードのみ） ===== */
+/* ===== プロフィールカード ===== */
 .main{position:relative;top:-40px}
 .card{
   background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;
@@ -66,12 +66,6 @@ img,svg{display:block;max-width:100%;height:auto}
   padding:12px 16px;font-size:15px;background:#fff;color:#0f172a;cursor:pointer
 }
 .btn:hover{background:#f1f5f9}
-
-/* ===== スケルトン ===== */
-.skel{background:linear-gradient(90deg,#eef2f7,#f5f8fb,#eef2f7);background-size:200% 100%;animation:sh 1.2s infinite}
-@keyframes sh{to{background-position:-200% 0}}
-.skel.round{width:72px;height:72px;border-radius:50%}
-.skel.line{height:14px;border-radius:8px}
 </style>
 </head>
 <body>
@@ -89,14 +83,13 @@ img,svg{display:block;max-width:100%;height:auto}
     </div>
   </header>
 
-  <!-- プロフィールカードのみ -->
+  <!-- プロフィールカード -->
   <main class="container main">
     <section class="card" aria-live="polite">
       <div class="profile">
         <img id="avatar" class="avatar" alt="プロフィール画像" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="/>
         <div class="person">
-          <h2 id="displayName" class="name">—</h2>
-
+          <h2 id="fullName" class="name">—</h2>
           <div class="meta">
             <span class="badge" title="所属店舗">
               <span class="label">店舗</span>
@@ -135,7 +128,7 @@ async function callServer(payload){
 /** 初期化 */
 (async ()=>{
   try{
-    $('displayName').textContent = '読込中…';
+    $('fullName').textContent = '読込中…';
     $('badgeStore').textContent = '—';
     $('badgeCode').textContent  = '—';
     $('sub').textContent = '読み込み中…';
@@ -147,18 +140,23 @@ async function callServer(payload){
     const st = await callServer({ idToken, action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    const profile = await liff.getProfile().catch(()=>({displayName:'',pictureUrl:''}));
-    const name  = st.displayName || profile.displayName || '会員';
+    // ← displayName は使わず、lastName + firstName を優先
+    const lastName  = st.lastName || '';
+    const firstName = st.firstName || '';
+    const fullName  = (lastName + ' ' + firstName).trim() || '会員';
+
     const store = st.store || '(未登録)';
     const code  = st.staffCode || '(未登録)';
 
-    $('displayName').textContent = name;
+    $('fullName').textContent = fullName;
     $('badgeStore').textContent  = store;
     $('badgeCode').textContent   = code;
 
+    // プロフィール画像はLINEのを利用（任意）
+    const profile = await liff.getProfile().catch(()=>({pictureUrl:''}));
     if(profile.pictureUrl){
       $('avatar').src = profile.pictureUrl;
-      $('avatar').alt = name;
+      $('avatar').alt = fullName;
     }
 
     $('sub').textContent = 'ようこそ！';
