@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>シフト</title>
+<title>画像</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
@@ -12,65 +12,116 @@ html,body{height:100%;overflow-x:hidden}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
 .header{padding:16px 16px 0;font-weight:800;font-size:18px}
 .container{flex:1;max-width:980px;margin:0 auto;padding:12px 16px 80px}
-.list{display:flex;flex-direction:column;gap:8px}
-.row{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:12px}
-.name{flex:1;min-width:0}
-.path{font-size:11px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section-title{font-weight:800;margin:8px 0 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
+.icon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
+.icon .material-icons{font-size:22px;color:#0f172a}
+.meta{min-width:0;display:flex;flex-direction:column;gap:2px}
 .title{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.meta{font-size:12px;opacity:.7}
-.btn{appearance:none;border:none;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer;white-space:nowrap}
+.sub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
-.bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
-.bottom-nav .material-icons{font-size:24px;color:#0f172a}
 .empty{padding:24px;text-align:center;opacity:.7}
+.breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
+.bc{font-size:12px;color:#2563eb;cursor:pointer}
+.sep{opacity:.4}
+.btn{appearance:none;border:none;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer;white-space:nowrap}
 
-/* ▼ モーダル（プレビュー） */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100}
+/* ▼ モーダル（プレビュー画像） */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
 .modal.open{display:flex}
 .viewer{width:96vw;max-width:980px;height:86vh;background:#111;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .vbar{height:48px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;padding:0 10px}
 .vname{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto}
 .vbtn{appearance:none;border:1px solid #e5e7eb;border-radius:10px;background:#06c755;color:#0b1b13;font-weight:700;padding:8px 12px;cursor:pointer}
 .vbtn.secondary{background:#fff;color:#0f172a}
-.vwrap{flex:1}
-.vwrap iframe{width:100%;height:100%;border:0;background:#111}
+.vwrap{flex:1;display:flex;align-items:center;justify-content:center;background:#111}
+.vwrap img{max-width:100%;max-height:100%;object-fit:contain}
+
+/* bottom nav + 未読バッジ */
+.bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
+.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
+.bottom-nav .material-icons{font-size:24px;color:#0f172a}
+.badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
 </style>
 </head>
 <body>
-  <div class="header">シフト（PDF）</div>
+  <div class="header">画像</div>
   <div class="container">
+    <div class="breadcrumb" id="bc"></div>
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
-    <div id="list" class="list" aria-live="polite" style="display:none"></div>
+
+    <div id="foldersSec">
+      <div class="section-title">フォルダ</div>
+      <div id="folders" class="grid"></div>
+    </div>
+
+    <div id="imagesSec" style="margin-top:12px">
+      <div class="section-title">画像</div>
+      <div id="images" class="grid"></div>
+    </div>
+
+    <div id="empty" class="empty" style="display:none">項目がありません</div>
   </div>
 
   <nav class="bottom-nav">
     <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
-    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
-    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div><span class="badge-dot" id="chatBadge"></span></button>
+    <button onclick="location.href='./shift.html'"><span class="material-icons">photo_library</span><div>画像</div></button>
     <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
     <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
   </nav>
 
-  <!-- ▼ プレビュー用モーダル -->
-  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="PDFプレビュー">
+  <!-- ▼ プレビュー -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="画像プレビュー">
     <div class="viewer">
       <div class="vbar">
         <div id="vname" class="vname">読み込み中…</div>
         <button id="vsave" class="vbtn">保存</button>
         <button id="vclose" class="vbtn secondary">閉じる</button>
       </div>
-      <div class="vwrap"><iframe id="vframe" allow="fullscreen"></iframe></div>
+      <div class="vwrap"><img id="vimg" alt=""></div>
     </div>
   </div>
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzDMC4W9mGu9AtE2SCkZofeUGzJT6S9tkzulyvrdrJRjxybey7FbrZULFSU7-9b0GjQpg/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
 const URL_REGISTER = "./register.html";
 const $ = id => document.getElementById(id);
+
+// パンくず
+const trail = []; // [{id,name}]
+function renderBreadcrumb(){
+  const bc = $('bc'); bc.innerHTML = '';
+  if(trail.length===0) return;
+  trail.forEach((t,i)=>{
+    const span = document.createElement('span');
+    span.className = 'bc';
+    span.textContent = t.name;
+    span.onclick = ()=> jumpTo(i);
+    bc.appendChild(span);
+    if(i < trail.length-1){ const s=document.createElement('span'); s.className='sep'; s.textContent='›'; bc.appendChild(s); }
+  });
+}
+function jumpTo(index){
+  const target = trail[index];
+  trail.splice(index+1);
+  renderBreadcrumb();
+  loadFolder(target.id, true);
+}
+
+function fmtDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const z = n=> String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function fmtMB(bytes){
+  return (bytes/1024/1024).toFixed(2) + 'MB';
+}
 
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -78,102 +129,137 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
-function fmtDate(iso){
-  if(!iso) return '';
-  const d = new Date(iso);
-  const z = n=> String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
-}
 
-function render(files){
-  const box = $('list'); box.innerHTML = '';
-  if(!files.length){ box.innerHTML = `<div class="empty">PDFが見つかりません</div>`; return; }
-  files.forEach(f=>{
-    const btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.textContent = '表示';
-    btn.onclick = ()=> openPreview(f.id);
-
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `
-      <div class="name">
+function renderFolders(list){
+  const box = $('folders'); box.innerHTML = '';
+  if(!list.length){ $('foldersSec').style.display='none'; return; }
+  $('foldersSec').style.display='';
+  list.forEach(f=>{
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div class="icon"><span class="material-icons">folder</span></div>
+      <div class="meta">
         <div class="title">${f.name}</div>
-        <div class="path">${f.path || ''}</div>
-        <div class="meta">${fmtDate(f.updatedAt)}・${(f.size/1024/1024).toFixed(2)}MB</div>
+        <div class="sub">${fmtDate(f.updatedAt)}</div>
       </div>`;
-    row.appendChild(btn);
-    box.appendChild(row);
+    el.onclick = ()=>{
+      trail.push({id:f.id, name:f.name});
+      renderBreadcrumb();
+      loadFolder(f.id, true);
+    };
+    box.appendChild(el);
   });
 }
 
-/* ▼ プレビュー（Base64→Blob→ObjectURL→iframe） */
-let currentObjectUrl = null;
-async function openPreview(fileId){
+function renderImages(list){
+  const box = $('images'); box.innerHTML = '';
+  if(!list.length){ $('imagesSec').style.display='none'; } else { $('imagesSec').style.display=''; }
+  list.forEach(f=>{
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div class="icon"><span class="material-icons">image</span></div>
+      <div class="meta">
+        <div class="title">${f.name}</div>
+        <div class="sub">${fmtDate(f.updatedAt)}・${fmtMB(f.size)}</div>
+      </div>`;
+    el.onclick = ()=> openPreview(f.id, f.name);
+    box.appendChild(el);
+  });
+  // 空表示
+  $('empty').style.display = (!list.length && $('folders').children.length===0) ? '' : 'none';
+}
+
+/* ▼ プレビュー */
+let currentUrl = null;
+async function openPreview(fileId, name){
   try{
     const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId });
     if(!res.base64) throw new Error('ファイル取得に失敗しました');
+    if(!(res.mimeType||'').startsWith('image/')) throw new Error('画像ではありません');
 
     const bin = Uint8Array.from(atob(res.base64), c => c.charCodeAt(0));
-    const blob = new Blob([bin], { type: res.mimeType || 'application/octet-stream' });
+    const blob = new Blob([bin], { type: res.mimeType });
+    if(currentUrl){ URL.revokeObjectURL(currentUrl); currentUrl=null; }
+    currentUrl = URL.createObjectURL(blob);
 
-    if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
-    currentObjectUrl = URL.createObjectURL(blob);
-
-    $('vname').textContent = res.name || 'ファイル';
-
-    // プレビュー切り替え
-    if(res.mimeType.startsWith('application/pdf')){
-      $('vframe').src = currentObjectUrl;
-    }else if(res.mimeType.startsWith('image/')){
-      $('vframe').src = '';
-      $('vframe').outerHTML = `<img src="${currentObjectUrl}" style="width:100%;height:100%;object-fit:contain;background:#111">`;
-    }else if(res.mimeType.startsWith('text/')){
-      const text = await blob.text();
-      $('vframe').srcdoc = `<pre style="color:#fff;background:#111;padding:16px;white-space:pre-wrap">${text.replace(/[&<>]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</pre>`;
-    }else{
-      $('vframe').srcdoc = `<div style="color:#fff;display:flex;align-items:center;justify-content:center;height:100%">この形式は直接表示できません。保存してご覧ください。</div>`;
-    }
-
-    const saveBtn = $('vsave');
-    saveBtn.onclick = ()=>{
-      const a = document.createElement('a');
-      a.href = currentObjectUrl;
-      a.download = res.name || 'file';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    };
-
+    $('vname').textContent = res.name || name || '画像';
+    $('vimg').src = currentUrl;
+    $('vimg').alt = res.name || name || '';
     $('modal').classList.add('open');
+
+    $('vsave').onclick = ()=>{
+      const a = document.createElement('a');
+      a.href = currentUrl;
+      a.download = res.name || name || 'image';
+      document.body.appendChild(a);
+      a.click(); a.remove();
+    };
   }catch(e){
     alert('プレビューに失敗しました：' + (e?.message || e));
   }
 }
-
 $('vclose').onclick = ()=>{
   $('modal').classList.remove('open');
-  $('vframe').src = 'about:blank';
-  if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+  $('vimg').src = '';
+  if(currentUrl){ URL.revokeObjectURL(currentUrl); currentUrl=null; }
 };
 
-(async ()=>{
+/* ▼ 読み込み */
+async function loadFolder(folderId, showLoading){
   try{
-    await liff.init({ liffId: LIFF_ID });
-    if(!liff.isLoggedIn()){ liff.login(); return; }
-
-    const st = await callServer({ idToken: liff.getIDToken(), action:'status' });
-    if(!st.bound){ location.replace(URL_REGISTER); return; }
-
-    const res = await callServer({ idToken: liff.getIDToken(), action:'shiftList' });
-    $('loader').style.display = 'none';
-    $('list').style.display = 'flex';
-    render(res.files || []);
+    if(showLoading){ $('loader').style.display='flex'; }
+    const res = await callServer({ action:'shiftChildren', idToken: liff.getIDToken(), folderId });
+    renderFolders(res.folders||[]);
+    renderImages(res.images||[]);
   }catch(e){
     console.error(e);
-    $('loader').innerHTML = '読み込みに失敗しました';
+    $('empty').style.display='';
+    $('foldersSec').style.display='none';
+    $('imagesSec').style.display='none';
+  }finally{
+    $('loader').style.display='none';
   }
+}
+
+(async ()=>{
+  await liff.init({ liffId: LIFF_ID });
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+  const st = await callServer({ action:'status', idToken: liff.getIDToken() });
+  if(!st.bound){ location.replace(URL_REGISTER); return; }
+
+  // ルート
+  const root = await callServer({ action:'shiftRoots', idToken: liff.getIDToken() });
+  trail.length = 0;
+  trail.push({ id: root.folder.id, name: root.folder.name });
+  renderBreadcrumb();
+  renderFolders(root.folders||[]);
+  renderImages(root.images||[]);
+  $('loader').style.display='none';
+
+  // ▼ 全ページ共通：未読バッジ
+  setupUnreadBadge();
 })();
+
+/* ===== 全ページ共通：未読バッジ ===== */
+async function setupUnreadBadge(){
+  try{
+    const badge = $('chatBadge'); if(!badge) return;
+    async function refresh(){
+      try{
+        const r = await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify({action:'unreadTotal', idToken:liff.getIDToken()})});
+        const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false, unread:0} }
+        const n = Number(j.unread||0);
+        if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+        else{ badge.style.display='none'; }
+      }catch(e){}
+    }
+    await refresh();
+    setInterval(refresh, 5000);
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
+  }catch(e){}
+}
 </script>
 </body>
 </html>
