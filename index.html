@@ -4,71 +4,220 @@
   <meta charset="utf-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>会員ログイン（LIFF）</title>
+  <title>会員ページ（LIFF）</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
-  .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
-  .card{width:min(720px,96vw);padding:24px;border:1px solid #e5e7eb;border-radius:16px}</style>
+  <style>
+    :root{
+      --bg:#ffffff; --text:#111827; --sub:#6b7280; --card:#f8fafc; --brand:#06c755;
+      --border:#e5e7eb; --chip:#eef7ff;
+    }
+    html,body{height:100%;}
+    body{margin:0; background:var(--bg); color:var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", Arial;}
+    .wrap{
+      min-height:100dvh; width:100vw; display:flex; flex-direction:column;
+      background:linear-gradient(180deg,#ecfdf5 0%, #ffffff 40%);
+      padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+      padding-top: calc(env(safe-area-inset-top) + 8px); padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+    }
+    .card{margin: 0 auto; width:100%; max-width:none; background:var(--card); border-radius:0;
+      box-shadow:none; padding:16px 16px 24px;}
+    @media (min-width: 720px){
+      .card{max-width:720px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.08); margin-top:24px;}
+    }
+    .header{display:flex; align-items:center; gap:12px; padding:12px 0 8px;}
+    .brandDot{width:36px; height:36px; border-radius:10px; background:var(--brand);
+      display:grid; place-items:center; color:#fff; font-weight:700;}
+    h1{margin:0; font-size: clamp(18px, 3.8vw, 22px); letter-spacing:.01em;}
+    .muted{color:var(--sub);}
+
+    .badge{margin-top:12px; background:#fff; border:1px solid var(--border); border-radius:16px;
+      padding:16px; display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center;}
+    .name{font-size: clamp(20px, 5.8vw, 28px); font-weight:700; line-height:1.2;}
+    .uid{font-size: clamp(12px, 3.2vw, 14px); color:var(--sub); word-break: break-all;}
+    .qr{width:136px; height:136px; border-radius:12px; border:1px solid var(--border); overflow:hidden;}
+    .rows{ margin-top:14px; display:grid; gap:10px; }
+    .row{display:flex; align-items:center; justify-content:space-between; background:#fff;
+      border:1px solid var(--border); border-radius:12px; padding:12px 14px;}
+    .key{ font-size: clamp(12px, 3.4vw, 14px); color:var(--sub); }
+    .val{ font-size: clamp(14px, 3.8vw, 16px); font-variation-settings: "wght" 560; }
+    .hidden{display:none;}
+
+    /* 紐づけフォーム */
+    .sheet{margin-top:12px; background:#fff; border:1px solid var(--border); border-radius:16px; padding:16px; display:grid; gap:12px;}
+    .fld{display:grid; gap:6px;}
+    .fld label{font-size:14px; color:#374151;}
+    .fld input{appearance:none; width:100%; font-size:16px; padding:12px 12px; border-radius:12px;
+      border:1px solid var(--border); background:#fff;}
+    .btn{appearance:none; border:none; cursor:pointer; border-radius:12px; padding:12px 16px; font-size:16px;
+      background:var(--brand); color:#fff;}
+    .btn-ghost{background:transparent; color:#111827; border:1px solid var(--border);}
+    .actions{ display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:8px; }
+  </style>
 </head>
 <body>
-  <div class="wrap"><div class="card">
-    <h1 style="margin:0 0 8px">会員ログイン</h1>
-    <p id="status" style="opacity:.8">初期化中…</p>
-    <div id="bindArea" style="display:none">
-      <!-- ここに前回の“職員コード＋氏名”フォームを置くなら、そのまま流用してください -->
-      <p>未紐づけです。職員コード＋氏名の登録へ進んでください。</p>
-    </div>
-  </div></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="brandDot">ID</div>
+        <div>
+          <h1>会員証</h1>
+          <div class="muted">初回は職員コード＋氏名を入力して紐づけ</div>
+        </div>
+      </div>
 
-<!-- 差分のみ（スクリプト部） -->
+      <!-- 会員証表示 -->
+      <div id="badge" class="badge hidden">
+        <div>
+          <div id="name" class="name">—</div>
+          <div id="uid" class="uid">会員ID：—</div>
+          <div id="staff" class="uid">職員コード：—</div>
+        </div>
+        <div class="qr"><img id="qrimg" alt="QR" width="136" height="136"></div>
+      </div>
+
+      <!-- ステータス行 -->
+      <div class="rows" style="margin-top:12px">
+        <div class="row">
+          <div class="key">ステータス</div>
+          <div id="status" class="val">未ログイン</div>
+        </div>
+      </div>
+
+      <!-- 初回紐づけフォーム -->
+      <div id="bindForm" class="sheet hidden">
+        <div class="fld">
+          <label for="code">職員コード（数字）</label>
+          <input id="code" inputmode="numeric" pattern="[0-9]*" placeholder="例：12345">
+        </div>
+        <div class="fld">
+          <label for="lastName">姓</label>
+          <input id="lastName" placeholder="例：山田">
+        </div>
+        <div class="fld">
+          <label for="firstName">名</label>
+          <input id="firstName" placeholder="例：太郎">
+        </div>
+        <div class="actions">
+          <button id="cancelBind" class="btn-ghost">キャンセル</button>
+          <button id="submitBind" class="btn">この内容で紐づけ</button>
+        </div>
+        <div id="bindMsg" class="muted"></div>
+      </div>
+
+      <div class="actions">
+        <button id="logoutBtn" class="btn-ghost hidden">ログアウト</button>
+      </div>
+    </div>
+  </div>
+
 <script>
-  const LIFF_ID = "2007972627-vnAq4qbB";
-  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbx1jhzy4oOQO2mxWsOWBSVPhzmdOlJSCUGsmHkBElPa3eFPGubxN8wtNfQo42ju5svxlA/exec";
-  const MEMBER_HOME_URL = "./home.html";
+  // ← 差し替え
+  const LIFF_ID = "2007972627-vnAq4qbB";                 // 例: 2000000000-xxxxxx
+  const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbx1jhzy4oOQO2mxWsOWBSVPhzmdOlJSCUGsmHkBElPa3eFPGubxN8wtNfQo42ju5svxlA/exec";  // 例: https://script.google.com/.../exec
 
   const $ = (id)=>document.getElementById(id);
-  const qs = new URLSearchParams(location.search);
-  const DEBUG = qs.get('debug') === '1';
+  let _idToken = null;
+
+  function updateQR(text){
+    const data = encodeURIComponent(text);
+    $('qrimg').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${data}`;
+  }
+
+  function showBadge({displayName, userId, staffCode}){
+    $('name').textContent = displayName || '会員';
+    $('uid').textContent  = '会員ID：' + (userId || '(不明)');
+    $('staff').textContent= '職員コード：' + (staffCode || '(未設定)');
+    updateQR(userId || '');
+    $('badge').classList.remove('hidden');
+  }
+
+  function showBindForm(show=true){
+    $('bindForm').classList.toggle('hidden', !show);
+  }
 
   async function callServer(payload){
     const res = await fetch(GAS_ENDPOINT, { method:'POST', body: JSON.stringify(payload) });
-    const t = await res.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:'JSON parse failed',raw:t}; }
-    if(DEBUG) console.log('status raw:', t);
-    if(!res.ok || !j.ok) throw new Error(j.error||('HTTP '+res.status+' '+t));
-    return j;
+    const txt = await res.text();
+    let data = {};
+    try{ data = JSON.parse(txt); }catch(e){ data = { ok:false, error:'JSON parse failed' }; }
+    if(!res.ok || !data.ok){ throw new Error(data.error || ('HTTP ' + res.status + ' ' + txt)); }
+    return data;
   }
 
   async function init(){
     try{
       await liff.init({ liffId: LIFF_ID });
       if(!liff.isLoggedIn()){ liff.login(); return; }
-      const idToken = liff.getIDToken();
+      const profile = await liff.getProfile();
+      _idToken = liff.getIDToken();
 
-      const status = await callServer({ idToken, action:'status' });
+      // 1) まずは状態確認（boundかどうか）
+      const res = await callServer({ idToken: _idToken, action: 'status' });
 
-      if (status.bound === true && !DEBUG) {
-        // ここだけでホームへ遷移（DEBUG=1 の時は遷移せず中身を確認できる）
-        $('status').textContent = 'ログイン済み → ホームへ移動します…';
-        location.replace(MEMBER_HOME_URL + '?from=index');
+      if(res.bound){
+        $('status').textContent = 'ログイン済み・紐づけ済み';
+        showBadge({
+          displayName: res.displayName || profile.displayName,
+          userId: res.userId,
+          staffCode: res.staffCode
+        });
+        $('logoutBtn').classList.remove('hidden');
         return;
       }
 
-      // 未紐づけ：フォームを見せる（ここにあなたの既存フォームを表示）
-      $('status').textContent = '未紐づけです。登録を行ってください。';
-      document.getElementById('bindArea').style.display = 'block';
+      // 未紐づけ → 入力フォーム表示
+      $('status').textContent = '初回：職員コードと氏名を入力してください';
+      showBindForm(true);
+      $('logoutBtn').classList.remove('hidden');
 
-      if(DEBUG){
-        const pre = document.createElement('pre');
-        pre.textContent = 'DEBUG status = ' + JSON.stringify(status,null,2);
-        document.body.appendChild(pre);
-      }
     }catch(err){
       console.error(err);
-      $('status').textContent = 'エラー：' + (err?.message||err);
+      $('status').textContent = '初期化エラー：' + (err?.message || err);
     }
   }
+
+  $('submitBind').addEventListener('click', async ()=>{
+    try{
+      const staffCode = $('code').value.trim();
+      const lastName  = $('lastName').value.trim();
+      const firstName = $('firstName').value.trim();
+      if(!staffCode || !/^[0-9]+$/.test(staffCode)) throw new Error('職員コードは数字で入力してください');
+      if(!lastName || !firstName) throw new Error('姓・名を入力してください');
+
+      $('bindMsg').textContent = '紐づけ中…';
+
+      const data = await callServer({
+        idToken: _idToken,
+        action: 'bind',
+        staffCode, lastName, firstName
+      });
+
+      $('bindMsg').textContent = '';
+      $('status').textContent = '紐づけ完了・ログイン済み';
+      showBindForm(false);
+      showBadge({
+        displayName: data.displayName,
+        userId: data.userId,
+        staffCode: data.staffCode
+      });
+    }catch(err){
+      console.error(err);
+      $('bindMsg').textContent = 'エラー：' + (err?.message || err);
+    }
+  });
+
+  $('cancelBind').addEventListener('click', ()=>{
+    showBindForm(false);
+    $('status').textContent = 'キャンセルしました（未紐づけ）';
+  });
+
+  $('logoutBtn').addEventListener('click', ()=>{
+    try{ if(liff.isLoggedIn()) liff.logout(); }catch(e){}
+    location.reload();
+  });
+
   init();
 </script>
-
 </body>
 </html>
