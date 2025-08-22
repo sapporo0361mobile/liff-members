@@ -9,7 +9,7 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow:hidden}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
-.header{display:flex;align-items:center;gap:8px;padding:12px 12px;background:#fff;border-bottom:1px solid rgba(2,6,23,.08)}
+.header{display:flex;align-items:center;gap:8px;padding:12px;background:#fff;border-bottom:1px solid rgba(2,6,23,.08)}
 .back{appearance:none;border:none;background:none;font-size:16px;cursor:pointer;padding:8px}
 .title{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:12px;opacity:.7}
@@ -25,7 +25,6 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 </style>
 </head>
 <body>
-<!-- ヘッダー -->
 <div class="header">
   <button class="back" id="backBtn">＜</button>
   <div style="min-width:0">
@@ -34,21 +33,17 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   </div>
 </div>
 
-<!-- メッセージ -->
 <div id="chat" class="chat" aria-live="polite"></div>
 
-<!-- 入力 -->
 <div class="inputRow">
   <input id="text" placeholder="メッセージを入力" autocomplete="off" />
   <button id="send">送信</button>
 </div>
 
 <script>
-/** 設定 */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz6LDVGyhdhedd9h_XWT9eQAxTPsx1TiNqtKBxe60YnJBXoajVQbjff47wDSZTxbqnxng/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzTF8XIACXiASwd_xWtq-HM_rX4fwDqaEYMc3y9jqAV0YKtdGJC5fdH6g-qilj-zK1vQQ/exec";
 
-/** DOM/状態 */
 const $ = (id)=>document.getElementById(id);
 const qs = new URLSearchParams(location.search);
 const otherUserId = qs.get('other');
@@ -57,26 +52,23 @@ let me = { userId:null };
 let roomId = null;
 let since = null;
 let pollTimer = null;
-let sending = false;  // 送信中フラグ
-let loading = false;  // 履歴ロード並走防止
-const seen = new Set(); // 既描画メッセージキー
+let sending = false;
+let loading = false;
+let newestReceived = null; // 自分宛て最新 createdAt
+const seen = new Set();    // 既描画キー
 
-/** 共通 fetch */
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
-  return j;
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
 function scrollBottom(){ const c = $('chat'); c.scrollTop = c.scrollHeight; }
 
-/** 去重描画 */
 function renderMessages(items){
   if(!items || !items.length) return;
   const c = $('chat');
   let lastCreated = since;
   for(const m of items){
-    // 一意キー（createdAt|from|text）でクライアント去重
     const key = `${m.createdAt}|${m.fromUserId}|${m.text}`;
     if(seen.has(key)) continue;
     seen.add(key);
@@ -88,70 +80,57 @@ function renderMessages(items){
     el.innerHTML = `${m.text}<div class="time">${t}</div>`;
     c.appendChild(el);
 
-    lastCreated = m.createdAt; // 最後の1件だけ保持
+    lastCreated = m.createdAt;
+    if(!mine && m.toUserId === me.userId){
+      if(!newestReceived || new Date(m.createdAt) > new Date(newestReceived)){
+        newestReceived = m.createdAt;
+      }
+    }
   }
   if(lastCreated) since = lastCreated;
   scrollBottom();
 }
 
-/** 並走禁止で1回ロード */
 async function loadOnce(){
   if(loading || !roomId) return;
   loading = true;
   try{
     const res = await callServer({ action:'history', idToken: liff.getIDToken(), roomId, since });
     renderMessages(res.messages || []);
-  }catch(e){
-    console.error(e);
-  }finally{
-    loading = false;
-  }
+    if(newestReceived){
+      await callServer({ action:'markRead', idToken: liff.getIDToken(), roomId, at: newestReceived });
+      newestReceived = null;
+    }
+  }catch(e){ console.error(e); }
+  finally{ loading = false; }
 }
 
-/** ポーリング開始/再開 */
 async function startPolling(){
   if(pollTimer){ clearInterval(pollTimer); }
-  await loadOnce();                        // まず1回
-  pollTimer = setInterval(loadOnce, 2000); // その後ポーリング
+  await loadOnce();
+  pollTimer = setInterval(loadOnce, 2000);
 }
 
-/** 送信（多重送信/重複表示対策） */
 async function sendOnce(){
   if(sending) return;
-  const input = $('text');
-  const btn = $('send');
-  const text = input.value.trim();
-  if(!text || !roomId) return;
-
+  const input = $('text'); const btn = $('send');
+  const text = input.value.trim(); if(!text || !roomId) return;
   try{
-    sending = true;
-    btn.disabled = true;
+    sending = true; btn.disabled = true;
     await callServer({ action:'send', idToken: liff.getIDToken(), roomId, text });
     input.value = '';
-    // ローカル即時反映はせず、サーバ反映後の履歴だけ描画
-    await loadOnce();
-  }catch(e){
-    alert('送信に失敗しました: ' + (e?.message || e));
-  }finally{
-    sending = false;
-    btn.disabled = false;
-  }
+    await loadOnce(); // サーバ反映後のみ描画（連投防止）
+  }catch(e){ alert('送信に失敗しました: ' + (e?.message || e)); }
+  finally{ sending = false; btn.disabled = false; }
 }
 
-/** イベント */
 $('send').addEventListener('click', sendOnce);
-$('text').addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter' && !e.shiftKey){
-    e.preventDefault();
-    sendOnce();
-  }
-});
+$('text').addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendOnce(); } });
 $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href='./contacts.html'; };
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && roomId) loadOnce(); });
 
-/** 起動 */
 (async ()=>{
   if(!otherUserId){ alert('相手が指定されていません'); location.replace('./contacts.html'); return; }
-
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
 
@@ -159,19 +138,13 @@ $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href
   if(!st.bound){ location.replace('./register.html'); return; }
   me.userId = st.userId;
 
-  // ルーム確定 & 相手情報
   const room = await callServer({ action:'room', idToken: liff.getIDToken(), otherUserId });
   roomId = room.roomId;
   const peer = room.peer || {};
   $('peerName').textContent = peer.name || 'ユーザー';
   $('peerSub').textContent  = (peer.store || '') + (peer.staffCode ? '・' + peer.staffCode : '');
 
-  // 新しいルームを開くたびに去重セットと since をリセット
-  seen.clear();
-  since = null;
-  $('chat').innerHTML = '';
-
-  // 開始
+  seen.clear(); since = null; $('chat').innerHTML = '';
   startPolling();
 })();
 </script>
