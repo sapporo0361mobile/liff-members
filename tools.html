@@ -4,27 +4,61 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ツール</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
-.container{max-width:880px;margin:0 auto;padding:24px}
+.container{max-width:880px;margin:0 auto;padding:24px 16px 80px}
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
+.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+.badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
+.card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:16px}
 </style>
 </head>
 <body>
   <div class="container">
-    <h1>ツール</h1>
-    <p>ここに社内ツールへのリンクや機能を追加していけます。</p>
+    <div class="card">
+      <h1 style="margin:0 0 8px">ツール</h1>
+      <p style="margin:0">ここに社内ツールへのリンクや機能を追加していけます。</p>
+    </div>
   </div>
 
   <nav class="bottom-nav">
     <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
-    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
-    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div><span class="badge-dot" id="chatBadge"></span></button>
+    <button onclick="location.href='./shift.html'"><span class="material-icons">photo_library</span><div>画像</div></button>
     <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
     <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
   </nav>
+
+<script>
+const LIFF_ID = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
+
+async function callServer(payload){
+  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
+  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+async function setupUnreadBadge(){
+  const badge = document.getElementById('chatBadge'); if(!badge) return;
+  await liff.init({ liffId: LIFF_ID }).catch(()=>{});
+  if(!liff.isLoggedIn()) return;
+  async function refresh(){
+    try{
+      const r = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
+      const n = Number(r.unread||0);
+      if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+      else{ badge.style.display='none'; }
+    }catch(e){}
+  }
+  await refresh();
+  setInterval(refresh, 5000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
+}
+setupUnreadBadge();
+</script>
 </body>
 </html>
