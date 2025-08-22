@@ -33,10 +33,23 @@ body{
 .ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* 画像：home.html と同じ“普通の img”挙動（枠なし・そのまま） */
+/* 画像：普通の img 表示＋ファイル名ラベル */
 img,video,canvas,svg{max-width:100%;height:auto;display:block}
 .img-list{display:flex;flex-direction:column;gap:16px}
-.img-item{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px}
+.img-item{
+  position:relative;            /* ← ラベル重ね用 */
+  background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;
+  padding:10px
+}
+.img-item .label{
+  position:absolute;left:14px;top:14px;
+  max-width:calc(100% - 28px);
+  font-size:12px;font-weight:700;color:#fff;
+  background:rgba(15,23,42,.7); /* 半透明濃紺 */
+  padding:6px 10px;border-radius:999px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  pointer-events:none;          /* 長押し保存の邪魔をしない */
+}
 
 /* 読み込み・空表示 */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
@@ -58,12 +71,10 @@ img,video,canvas,svg{max-width:100%;height:auto;display:block}
 
     <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 
-    <!-- フォルダ（見出しなし／シンプル） -->
     <div id="foldersSec">
       <div id="folders" class="flist"></div>
     </div>
 
-    <!-- 画像（そのまま img を縦並びで全部表示） -->
     <div id="imagesSec">
       <div id="images" class="img-list"></div>
     </div>
@@ -95,6 +106,10 @@ function isImageEntry(f){
   const mt = (f.mimeType||'').toLowerCase();
   if(mt.startsWith('image/')) return true;
   return /\.(png|jpe?g|gif|webp|bmp|heic|heif|tif?f)$/i.test(f.name||'');
+}
+function buildDriveImageUrl(fileId){
+  // 必要に応じて "=s1600" などのサイズ指定を末尾に付けることも可能
+  return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -143,11 +158,7 @@ function renderFolders(list){
   });
 }
 
-/* ===== images：lh3 URL を直接 <img> に埋め込み（全件表示） ===== */
-function buildDriveImageUrl(fileId){
-  // ご指定の形式。必要なら末尾に "=s1600" 等でサイズ指定可。
-  return `https://lh3.googleusercontent.com/d/${fileId}`;
-}
+/* ===== images：lh3 URL を直接 <img> に埋め込み（全件表示）+ ファイル名ラベル ===== */
 async function renderImages(list){
   const box = $('images'); box.innerHTML = '';
   const imgs = (list||[]).filter(isImageEntry);
@@ -159,13 +170,22 @@ async function renderImages(list){
   }
   $('imagesSec').style.display='';
 
-  // 画像をすべて通常の <img> で表示（タップ不要）
   imgs.forEach(f=>{
     const wrap = document.createElement('div'); wrap.className='img-item';
+
+    // ファイル名ラベル（重ね表示）
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = f.name || '';
+    label.title = f.name || ''; // 長い場合にツールチップで全名を見せる
+    wrap.appendChild(label);
+
+    // 画像本体
     const imgEl = document.createElement('img');
     imgEl.alt = f.name || 'image';
     imgEl.src = buildDriveImageUrl(f.id);
     wrap.appendChild(imgEl);
+
     box.appendChild(wrap);
   });
 
