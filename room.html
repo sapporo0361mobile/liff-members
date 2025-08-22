@@ -22,6 +22,9 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .inputRow input{flex:1;font-size:16px;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff}
 .inputRow button{appearance:none;border:none;border-radius:12px;padding:12px 16px;background:#06c755;color:#0b1b13;font-weight:700;cursor:pointer}
 .inputRow button[disabled]{opacity:.6;cursor:not-allowed}
+.loader{display:none;justify-content:center;align-items:center;padding:12px}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -33,6 +36,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   </div>
 </div>
 
+<div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 <div id="chat" class="chat" aria-live="polite"></div>
 
 <div class="inputRow">
@@ -42,7 +46,7 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzTF8XIACXiASwd_xWtq-HM_rX4fwDqaEYMc3y9jqAV0YKtdGJC5fdH6g-qilj-zK1vQQ/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzuUAM67Gb0lcEflxfDoC3xp8sf6iSm9dEuWFfPyyFVQQnxnReMK35tJpo2iufMR_GrOw/exec";
 
 const $ = (id)=>document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -54,8 +58,8 @@ let since = null;
 let pollTimer = null;
 let sending = false;
 let loading = false;
-let newestReceived = null; // 自分宛て最新 createdAt
-const seen = new Set();    // 既描画キー
+let newestReceived = null;  // 最新受信メッセージ時刻
+const seen = new Set();     // 描画去重
 
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -91,10 +95,11 @@ function renderMessages(items){
   scrollBottom();
 }
 
-async function loadOnce(){
+async function loadOnce(showLoading=false){
   if(loading || !roomId) return;
   loading = true;
   try{
+    if(showLoading){ $('loader').style.display='flex'; }
     const res = await callServer({ action:'history', idToken: liff.getIDToken(), roomId, since });
     renderMessages(res.messages || []);
     if(newestReceived){
@@ -102,12 +107,12 @@ async function loadOnce(){
       newestReceived = null;
     }
   }catch(e){ console.error(e); }
-  finally{ loading = false; }
+  finally{ loading = false; $('loader').style.display='none'; }
 }
 
 async function startPolling(){
   if(pollTimer){ clearInterval(pollTimer); }
-  await loadOnce();
+  await loadOnce(true);              // 初回表示はスピナー
   pollTimer = setInterval(loadOnce, 2000);
 }
 
@@ -119,7 +124,7 @@ async function sendOnce(){
     sending = true; btn.disabled = true;
     await callServer({ action:'send', idToken: liff.getIDToken(), roomId, text });
     input.value = '';
-    await loadOnce(); // サーバ反映後のみ描画（連投防止）
+    await loadOnce(); // サーバ反映後だけ描画（連投防止）
   }catch(e){ alert('送信に失敗しました: ' + (e?.message || e)); }
   finally{ sending = false; btn.disabled = false; }
 }
