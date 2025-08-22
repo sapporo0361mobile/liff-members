@@ -37,7 +37,6 @@ body{
 img,video,canvas,svg{max-width:100%;height:auto;display:block}
 .img-list{display:flex;flex-direction:column;gap:16px}
 .img-item{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px}
-.img-item img{width:100%;height:auto;display:block}
 
 /* 読み込み・空表示 */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
@@ -82,7 +81,7 @@ img,video,canvas,svg{max-width:100%;height:auto;display:block}
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEx8f6xOOCo7f39LZa0yPRHZFRKrWwS4DxLyHC9znxTkhxyttPaDRO7F30hYjcObPMSQ/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyxBexOLjluMXHLrsW4Ur3GqITKHemtWoUFOxtavcglNuYVz0wvR9a6XZl4h-Lqm3pNHg/exec";
 const URL_REGISTER = "./register.html";
 const $ = id => document.getElementById(id);
 
@@ -144,20 +143,13 @@ function renderFolders(list){
   });
 }
 
-/* ===== Blob URL 管理 ===== */
-let currentObjectUrls = [];
-function clearObjectUrls(){
-  for(const u of currentObjectUrls){
-    try{ URL.revokeObjectURL(u); }catch(_){}
-  }
-  currentObjectUrls = [];
+/* ===== images：lh3 URL を直接 <img> に埋め込み（全件表示） ===== */
+function buildDriveImageUrl(fileId){
+  // ご指定の形式。必要なら末尾に "=s1600" 等でサイズ指定可。
+  return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
-
-/* ===== images：すべて最初から“普通の <img>”で表示（Blob URL で長押し保存が効きやすい） ===== */
 async function renderImages(list){
   const box = $('images'); box.innerHTML = '';
-  clearObjectUrls();
-
   const imgs = (list||[]).filter(isImageEntry);
 
   if(!imgs.length){
@@ -167,34 +159,16 @@ async function renderImages(list){
   }
   $('imagesSec').style.display='';
 
-  // 全件取得→Blob URL を <img src> に直指定（Data URL ではない）
-  const tasks = imgs.map(async f=>{
+  // 画像をすべて通常の <img> で表示（タップ不要）
+  imgs.forEach(f=>{
     const wrap = document.createElement('div'); wrap.className='img-item';
     const imgEl = document.createElement('img');
     imgEl.alt = f.name || 'image';
+    imgEl.src = buildDriveImageUrl(f.id);
     wrap.appendChild(imgEl);
     box.appendChild(wrap);
-
-    try{
-      const res = await callServer({ action:'shiftGet', idToken: liff.getIDToken(), fileId: f.id });
-      if(!(res.mimeType||'').startsWith('image/')) throw new Error('not image');
-
-      // base64 -> Blob -> Blob URL
-      const bin  = Uint8Array.from(atob(res.base64), c => c.charCodeAt(0));
-      const blob = new Blob([bin], { type: res.mimeType || 'image/jpeg' });
-      const url  = URL.createObjectURL(blob);
-      currentObjectUrls.push(url);
-
-      imgEl.src = url;                    // ← ふつうの URL としてセット（長押し保存が効きやすい）
-      imgEl.alt = res.name || f.name || 'image';
-      // （必要なら）クリックで別タブ表示したい場合は a でラップしてもOK
-    }catch(e){
-      imgEl.alt = '読み込みに失敗しました';
-      imgEl.style.opacity = .5;
-    }
   });
 
-  await Promise.all(tasks);
   $('empty').style.display = 'none';
 }
 
@@ -249,9 +223,6 @@ async function setupUnreadBadge(){
   setInterval(refresh, 5000);
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refresh(); });
 }
-
-/* ===== ページ離脱時に Blob URL を解放 ===== */
-window.addEventListener('pagehide', clearObjectUrls);
 </script>
 </body>
 </html>
