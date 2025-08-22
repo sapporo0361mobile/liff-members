@@ -9,27 +9,16 @@
 *,*::before,*::after{box-sizing:border-box}
 html,body{height:100%;overflow:hidden}
 body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
-
-/* ヘッダー */
-.header{
-  display:flex;align-items:center;gap:8px;
-  padding:12px 12px;background:#fff;border-bottom:1px solid rgba(2,6,23,.08)
-}
+.header{display:flex;align-items:center;gap:8px;padding:12px 12px;background:#fff;border-bottom:1px solid rgba(2,6,23,.08)}
 .back{appearance:none;border:none;background:none;font-size:16px;cursor:pointer;padding:8px}
 .title{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:12px;opacity:.7}
-
-/* 本文 */
 .chat{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
 .msg{max-width:80%;padding:8px 12px;border-radius:14px;word-break:break-word}
 .me{align-self:flex-end;background:#dcfce7;border:1px solid rgba(2,6,23,.1)}
 .them{align-self:flex-start;background:#fff;border:1px solid rgba(2,6,23,.12)}
 .time{font-size:11px;opacity:.6;margin-top:2px}
-
-/* 入力 */
-.inputRow{
-  display:flex;gap:8px;padding:12px;background:#f6f8fc;border-top:1px solid rgba(2,6,23,.08)
-}
+.inputRow{display:flex;gap:8px;padding:12px;background:#f6f8fc;border-top:1px solid rgba(2,6,23,.08)}
 .inputRow input{flex:1;font-size:16px;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff}
 .inputRow button{appearance:none;border:none;border-radius:12px;padding:12px 16px;background:#06c755;color:#0b1b13;font-weight:700;cursor:pointer}
 .inputRow button[disabled]{opacity:.6;cursor:not-allowed}
@@ -55,9 +44,11 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 </div>
 
 <script>
+/** 設定 */
 const LIFF_ID = "2007972627-vnAq4qbB";
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz6LDVGyhdhedd9h_XWT9eQAxTPsx1TiNqtKBxe60YnJBXoajVQbjff47wDSZTxbqnxng/exec";
 
+/** DOM/状態 */
 const $ = (id)=>document.getElementById(id);
 const qs = new URLSearchParams(location.search);
 const otherUserId = qs.get('other');
@@ -66,45 +57,67 @@ let me = { userId:null };
 let roomId = null;
 let since = null;
 let pollTimer = null;
-let sending = false; // ← 送信中フラグ（多重送信防止）
+let sending = false;  // 送信中フラグ
+let loading = false;  // 履歴ロード並走防止
+const seen = new Set(); // 既描画メッセージキー
 
+/** 共通 fetch */
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
-
 function scrollBottom(){ const c = $('chat'); c.scrollTop = c.scrollHeight; }
 
+/** 去重描画 */
 function renderMessages(items){
+  if(!items || !items.length) return;
   const c = $('chat');
-  items.forEach(m=>{
+  let lastCreated = since;
+  for(const m of items){
+    // 一意キー（createdAt|from|text）でクライアント去重
+    const key = `${m.createdAt}|${m.fromUserId}|${m.text}`;
+    if(seen.has(key)) continue;
+    seen.add(key);
+
     const mine = (m.fromUserId === me.userId);
     const el = document.createElement('div');
     el.className = 'msg ' + (mine ? 'me' : 'them');
     const t = new Date(m.createdAt).toLocaleString();
     el.innerHTML = `${m.text}<div class="time">${t}</div>`;
     c.appendChild(el);
-    since = m.createdAt;
-  });
+
+    lastCreated = m.createdAt; // 最後の1件だけ保持
+  }
+  if(lastCreated) since = lastCreated;
   scrollBottom();
 }
 
+/** 並走禁止で1回ロード */
 async function loadOnce(){
-  if(!roomId) return;
-  const res = await callServer({ action:'history', idToken: liff.getIDToken(), roomId, since });
-  renderMessages(res.messages || []);
+  if(loading || !roomId) return;
+  loading = true;
+  try{
+    const res = await callServer({ action:'history', idToken: liff.getIDToken(), roomId, since });
+    renderMessages(res.messages || []);
+  }catch(e){
+    console.error(e);
+  }finally{
+    loading = false;
+  }
 }
 
+/** ポーリング開始/再開 */
 async function startPolling(){
   if(pollTimer){ clearInterval(pollTimer); }
-  await loadOnce();
-  pollTimer = setInterval(loadOnce, 2000);
+  await loadOnce();                        // まず1回
+  pollTimer = setInterval(loadOnce, 2000); // その後ポーリング
 }
 
+/** 送信（多重送信/重複表示対策） */
 async function sendOnce(){
-  if(sending) return; // 多重送信防止
+  if(sending) return;
   const input = $('text');
   const btn = $('send');
   const text = input.value.trim();
@@ -115,7 +128,7 @@ async function sendOnce(){
     btn.disabled = true;
     await callServer({ action:'send', idToken: liff.getIDToken(), roomId, text });
     input.value = '';
-    // ローカル即時反映はしない → サーバ送信完了後に最新履歴を取得
+    // ローカル即時反映はせず、サーバ反映後の履歴だけ描画
     await loadOnce();
   }catch(e){
     alert('送信に失敗しました: ' + (e?.message || e));
@@ -125,6 +138,7 @@ async function sendOnce(){
   }
 }
 
+/** イベント */
 $('send').addEventListener('click', sendOnce);
 $('text').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter' && !e.shiftKey){
@@ -134,13 +148,13 @@ $('text').addEventListener('keydown', (e)=>{
 });
 $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href='./contacts.html'; };
 
+/** 起動 */
 (async ()=>{
   if(!otherUserId){ alert('相手が指定されていません'); location.replace('./contacts.html'); return; }
 
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
 
-  // 自分確認
   const st = await callServer({ action:'status', idToken: liff.getIDToken() });
   if(!st.bound){ location.replace('./register.html'); return; }
   me.userId = st.userId;
@@ -152,7 +166,12 @@ $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href
   $('peerName').textContent = peer.name || 'ユーザー';
   $('peerSub').textContent  = (peer.store || '') + (peer.staffCode ? '・' + peer.staffCode : '');
 
-  // ポーリング開始
+  // 新しいルームを開くたびに去重セットと since をリセット
+  seen.clear();
+  since = null;
+  $('chat').innerHTML = '';
+
+  // 開始
   startPolling();
 })();
 </script>
