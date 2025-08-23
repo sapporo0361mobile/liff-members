@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>売場サーチ（店内地図）</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    :root{
+      --cell: 18px;  /* 1マスのサイズ */
+      --gap: 1px;    /* マス間の隙間（罫線背景） */
+      --border-color: #0f172a22;
+    }
+    html,body{height:100%}
+    body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
+    .container{max-width:1024px;margin:0 auto;padding:16px 16px 80px}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+    .toolbar input, .toolbar select{padding:8px 10px;border:1px solid rgba(2,6,23,.12);border-radius:10px;background:#fff;min-width:0}
+    .toolbar button{appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .toolbar .icon{display:inline-flex;gap:6px;align-items:center}
+
+    .map-wrap{position:relative;background:var(--border-color);border-radius:12px;padding:var(--gap)}
+    .map{display:grid;grid-auto-rows:var(--cell);grid-auto-columns:var(--cell);gap:var(--gap);background:var(--border-color);border-radius:10px;overflow:auto;max-height:65vh}
+    .cell{width:var(--cell);height:var(--cell);background:#fff;position:relative}
+    .cell[data-b-t="1"]{box-shadow: inset 0 1px 0 #1114}
+    .cell[data-b-r="1"]{box-shadow: inset -1px 0 0 #1114}
+    .cell[data-b-b="1"]{box-shadow: inset 0 -1px 0 #1114}
+    .cell[data-b-l="1"]{box-shadow: inset 1px 0 0 #1114}
+    .cell .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0f172aAA;mix-blend-mode:multiply}
+
+    .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .legend .item{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:999px;padding:4px 8px}
+    .legend .swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(2,6,23,.12)}
+
+    .note{font-size:12px;color:#475569;margin-top:8px}
+
+    .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
+    .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
+    .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="margin:0 0 8px">売場サーチ</h1>
+    <p class="note" id="status">Googleスプレッドシートの色・罫線で作成した店内地図を表示します。</p>
+
+    <div class="toolbar">
+      <label class="icon" title="セルサイズ">
+        <span class="material-icons" aria-hidden>grid_on</span>
+        <input id="cellSize" type="number" min="8" max="64" value="18">px
+      </label>
+      <label class="icon" title="ズーム">
+        <span class="material-icons" aria-hidden>zoom_in</span>
+        <select id="zoom">
+          <option value="0.75">75%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+        </select>
+      </label>
+      <button id="reload" class="icon"><span class="material-icons">refresh</span><span>再読込</span></button>
+    </div>
+
+    <div class="map-wrap">
+      <div id="map" class="map" role="grid" aria-label="店内地図"></div>
+    </div>
+
+    <div id="legend" class="legend" aria-label="凡例"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
+    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
+    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
+    <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
+    <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
+  </nav>
+
+<script>
+/* ===== 設定 ===== */
+const LIFF_ID = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwBio7wHQ2R6tuE5NZfLG2LzZ8SKec_tVtmwcrTGVmvAK5vYqIKMBozh0YjeKRA97kC_w/exec";
+
+/* デフォルト指定（クエリで上書き：?sid=...&sheet=...&range=...） */
+const DEFAULTS = { sid:'', sheet:'Floor1', range:'A1:Z50' };
+
+/* ===== 汎用 ===== */
+function qs(){
+  const p = new URLSearchParams(location.search);
+  return Object.fromEntries(p.entries());
+}
+function setStatus(msg){ document.getElementById('status').textContent = msg; }
+async function callServer(payload){
+  const r = await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload)});
+  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:'JSON parse failed: '+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+function toHexColor(c){
+  if(!c) return '#ffffff';
+  const f = n=>('0'+Math.round((n||0)*255).toString(16)).slice(-2);
+  if(typeof c === 'string') return c; // 既に #rrggbb
+  return `#${f(c.red)}${f(c.green)}${f(c.blue)}`;
+}
+
+/* ===== レンダリング ===== */
+function renderMap(data){
+  const map = document.getElementById('map');
+  map.style.gridTemplateColumns = `repeat(${data.cols}, var(--cell))`;
+  map.innerHTML = '';
+
+  const legend = new Map();
+  for(let r=0;r<data.rows;r++){
+    for(let c=0;c<data.cols;c++){
+      const key = r+":"+c;
+      const cell = data.cells[key] || {};
+      const bg = cell.bg || '#ffffff';
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.style.background = bg;
+      if(cell.b){
+        if(cell.b.t) div.setAttribute('data-b-t','1');
+        if(cell.b.r) div.setAttribute('data-b-r','1');
+        if(cell.b.b) div.setAttribute('data-b-b','1');
+        if(cell.b.l) div.setAttribute('data-b-l','1');
+      }
+      const label = cell.v || cell.n;
+      if(label){
+        const span = document.createElement('div');
+        span.className = 'label';
+        span.textContent = String(label);
+        div.appendChild(span);
+      }
+      map.appendChild(div);
+      legend.set(bg, (legend.get(bg)||0)+1);
+    }
+  }
+  renderLegend(legend);
+}
+function renderLegend(legendMap){
+  const el = document.getElementById('legend');
+  el.innerHTML = '';
+  for(const [bg,count] of legendMap.entries()){
+    if(bg === '#ffffff' && count>3) continue;
+    const item = document.createElement('div');
+    item.className = 'item';
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.style.background = bg;
+    const txt = document.createElement('span');
+    txt.textContent = `${bg} × ${count}`;
+    item.appendChild(sw); item.appendChild(txt);
+    el.appendChild(item);
+  }
+}
+
+/* ===== 起動 ===== */
+async function main(){
+  const params = Object.assign({}, DEFAULTS, qs());
+  document.getElementById('cellSize').addEventListener('input', e=>{
+    document.documentElement.style.setProperty('--cell', e.target.value+'px');
+  });
+  document.getElementById('zoom').addEventListener('change', e=>{
+    document.querySelector('.map-wrap').style.transform = `scale(${e.target.value})`;
+    document.querySelector('.map-wrap').style.transformOrigin = 'top left';
+  });
+  document.getElementById('reload').addEventListener('click', load);
+
+  /* LIFFは任意。使わない場合はスキップ */
+  try{
+    if(LIFF_ID && typeof liff!=='undefined'){
+      await liff.init({ liffId: LIFF_ID });
+    }
+  }catch(_){}
+
+  load();
+
+  async function load(){
+    setStatus('読み込み中…');
+    try{
+      const res = await callServer({
+        action: 'storeMap',
+        idToken: (typeof liff!=='undefined' && liff.getIDToken) ? liff.getIDToken() : undefined,
+        spreadsheetId: params.sid || undefined,
+        sheetName: params.sheet,
+        rangeA1: params.range
+      });
+      for(const key in res.cells){
+        if(res.cells[key].bg && typeof res.cells[key].bg !== 'string'){
+          res.cells[key].bg = toHexColor(res.cells[key].bg);
+        }
+      }
+      renderMap(res);
+      setStatus(`${res.sheetName}!${res.rangeA1}（${res.rows}×${res.cols}）を表示`);
+    }catch(e){
+      console.error(e);
+      setStatus('取得に失敗しました: '+e.message);
+    }
+  }
+}
+main();
+</script>
+</body>
+</html>
