@@ -20,25 +20,37 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
 .header-right a{display:inline-flex;align-items:center;gap:4px;color:#0f172a;text-decoration:none;padding:6px}
 .badge-dot{position:absolute;right:0;top:0;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none;transform:translate(30%,-30%)}
 
-/* 本文 */
+/* 準備中＆完了 */
 .prep{padding:8px 12px;background:#fff3cd;border:1px solid #ffe8a1;color:#663c00;font-size:14px}
-#loader{display:none;justify-content:center;align-items:center;padding:12px}
+.ready{padding:8px 12px;background:#e6ffed;border:1px solid #b7f5c9;color:#135f2d;font-size:14px;display:none}
+
+/* スピナー */
+.loader{display:none;justify-content:center;align-items:center;padding:12px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 
+/* チャット */
 .chat{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f6f8fc}
 .msg{max-width:80%;padding:8px 12px;border-radius:14px;word-break:break-word}
 .me{align-self:flex-end;background:#dcfce7;border:1px solid rgba(2,6,23,.1)}
 .them{align-self:flex-start;background:#fff;border:1px solid rgba(2,6,23,.12)}
 .time{font-size:11px;opacity:.6;margin-top:2px}
+.msg img{display:block;max-width:72vw;border-radius:12px}
 
-/* 入力行 */
-.inputRow{display:flex;gap:8px;padding:12px;background:#f6f8fc;border-top:1px solid rgba(2,6,23,.08)}
-.inputRow input{flex:1;font-size:16px;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff}
-.inputRow button{appearance:none;border:none;border-radius:12px;padding:12px 16px;background:#06c755;color:#0b1b13;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
-.inputRow button[disabled]{opacity:.6;cursor:not-allowed}
+/* 入力行（Enterは改行／送信はボタン or Ctrl/Cmd+Enter） */
+.inputRow{display:flex;gap:8px;padding:12px;background:#f6f8fc;border-top:1px solid rgba(2,6,23,.08);align-items:flex-end}
+.textarea{flex:1;display:flex;flex-direction:column;gap:6px}
+#text{width:100%;min-height:40px;max-height:36vh;resize:vertical;font-size:16px;padding:12px;border-radius:12px;border:1px solid rgba(2,6,23,.12);background:#fff}
+.actions{display:flex;gap:8px}
+.icon-btn, .send-btn{
+  appearance:none;border:none;border-radius:12px;padding:10px 12px;background:#fff;border:1px solid rgba(2,6,23,.12);
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center
+}
+.icon-btn .material-icons{font-size:22px;color:#0f172a}
+.send-btn{background:#06c755;border-color:#06c755;color:#0b1b13;font-weight:700;gap:8px}
+.send-btn[disabled], .icon-btn[disabled]{opacity:.6;cursor:not-allowed}
 
-/* 送信ボタンスピナー */
+/* 送信ボタンのぐるぐる */
 .btn-spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.6);border-top-color:#0b1b13;animation:sp 0.9s linear infinite}
 </style>
 </head>
@@ -55,15 +67,21 @@ body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-syst
   </div>
 </div>
 
-<!-- 準備中メッセージ -->
 <div id="prep" class="prep" role="status" aria-live="polite">トークルームを準備中…</div>
+<div id="ready" class="ready" role="status" aria-live="polite">準備完了！</div>
 
 <div id="loader" class="loader"><div class="spin"></div>読み込み中…</div>
 <div id="chat" class="chat" aria-live="polite"></div>
 
 <div class="inputRow">
-  <input id="text" placeholder="メッセージを入力" autocomplete="off" disabled />
-  <button id="send" disabled>送信</button>
+  <div class="textarea">
+    <textarea id="text" placeholder="メッセージを入力（Enterで改行、Ctrl/Cmd+Enterで送信）" autocomplete="off" disabled></textarea>
+  </div>
+  <div class="actions">
+    <input type="file" id="pickImage" accept="image/*" hidden>
+    <button id="btnImage" class="icon-btn" title="画像を送信" disabled><span class="material-icons">image</span></button>
+    <button id="send" class="send-btn" disabled>送信</button>
+  </div>
 </div>
 
 <script>
@@ -89,7 +107,9 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
 function scrollBottom(){ const c = $('chat'); c.scrollTop = c.scrollHeight; }
+function driveImageUrl(fileId){ return `https://lh3.googleusercontent.com/d/${fileId}`; }
 
+/* メッセージ描画（画像マーカーを画像表示に変換） */
 function renderMessages(items){
   if(!items || !items.length) return;
   const c = $('chat');
@@ -102,8 +122,20 @@ function renderMessages(items){
     const mine = (m.fromUserId === me.userId);
     const el = document.createElement('div');
     el.className = 'msg ' + (mine ? 'me' : 'them');
-    const t = new Date(m.createdAt).toLocaleString();
-    el.innerHTML = `${m.text}<div class="time">${t}</div>`;
+
+    const text = String(m.text||'');
+    if(text.startsWith('[img:') && text.endsWith(']')){
+      // 形式: [img:fileId|name|mime]
+      const inner = text.slice(5,-1);
+      const [fid, fname='image', mime='image/*'] = inner.split('|');
+      const url = driveImageUrl(fid);
+      el.innerHTML = `<img src="${url}" alt="${fname}" loading="lazy"><div class="time">${new Date(m.createdAt).toLocaleString()}</div>`;
+    }else{
+      const t = new Date(m.createdAt).toLocaleString();
+      const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      el.innerHTML = `${safe}<div class="time">${t}</div>`;
+    }
+
     c.appendChild(el);
 
     lastCreated = m.createdAt;
@@ -135,44 +167,97 @@ async function loadOnce(showLoading=false){
 async function startPolling(){
   if(pollTimer){ clearInterval(pollTimer); }
   await loadOnce(true);                   // 初回ロード（スピナー表示）
-  // 準備完了：入力解放 & 準備中バナー消す
+  // 準備完了：入力解放 & バナー切替
   enableInput(true);
-  const prep = $('prep'); if(prep) prep.style.display = 'none';
+  showReady();
   pollTimer = setInterval(loadOnce, 2000);
 }
 
 function enableInput(on){
   $('text').disabled = !on;
   $('send').disabled = !on;
+  $('btnImage').disabled = !on;
   if(on){ $('text').focus(); }
 }
+function showReady(){
+  const prep = $('prep'); if(prep) prep.style.display = 'none';
+  const ready = $('ready'); if(ready){ ready.style.display = 'block'; setTimeout(()=> ready.style.display='none', 2000); }
+}
 
-async function sendOnce(){
+/* 送信（テキスト） */
+async function sendText(){
   if(sending) return;
   const input = $('text'); const btn = $('send');
-  const text = input.value.trim(); if(!text || !roomId) return;
+  const text = input.value; // 改行保持
+  if(!text.trim() || !roomId) return;
 
-  // 送信中UI（ぐるぐる）
   const prevHtml = btn.innerHTML;
   try{
     sending = true; btn.disabled = true;
     btn.innerHTML = '<span class="btn-spinner"></span><span>送信中…</span>';
-
     await callServer({ action:'send', idToken: liff.getIDToken(), roomId, text });
     input.value = '';
-    await loadOnce(); // 反映後に最新表示
+    await loadOnce(); // 反映
   }catch(e){
     alert('送信に失敗しました: ' + (e?.message || e));
   }finally{
-    sending = false; btn.disabled = false; btn.innerHTML = prevHtml;
+    sending = false; btn.disabled = false; btn.innerHTML = '送信';
     input.focus();
   }
 }
 
-$('send').addEventListener('click', sendOnce);
-$('text').addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendOnce(); } });
+/* 送信（画像） */
+function pickImage(){ $('pickImage').click(); }
+$('btnImage').addEventListener('click', pickImage);
+$('pickImage').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!/^image\//.test(file.type)){ alert('画像ファイルを選択してください'); return; }
+  if(!roomId){ alert('ルーム準備中です'); return; }
+
+  const btn = $('send');
+  const prevHtml = btn.innerHTML;
+  try{
+    // ぐるぐる
+    btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span><span>画像送信中…</span>';
+
+    // Base64化（dataURL）
+    const dataUrl = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = ()=>res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    await callServer({
+      action: 'sendImage',
+      idToken: liff.getIDToken(),
+      roomId,
+      name: file.name || 'image',
+      mime: file.type || 'image/*',
+      dataUrl
+    });
+    // 直後に履歴反映
+    await loadOnce();
+  }catch(err){
+    alert('画像送信に失敗しました: ' + (err?.message || err));
+  }finally{
+    btn.disabled = false; btn.innerHTML = '送信';
+    e.target.value = ''; // 連続選択対策
+  }
+});
+
+/* 入力系イベント */
+$('send').addEventListener('click', sendText);
+// Enterは改行、Ctrl/Cmd+Enterで送信
+$('text').addEventListener('keydown', (e)=>{
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  if((isMac ? e.metaKey : e.ctrlKey) && e.key === 'Enter'){
+    e.preventDefault(); sendText();
+  }
+});
 $('backBtn').onclick = ()=>{ history.length > 1 ? history.back() : location.href='./contacts.html'; };
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && roomId) loadOnce(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') loadOnce(); });
 
 /* ▼ ヘッダーの未読バッジ */
 async function setupUnreadBadge(){
@@ -199,7 +284,7 @@ async function setupUnreadBadge(){
   if(!st.bound){ location.replace('./register.html'); return; }
   me.userId = st.userId;
 
-  // 準備中なので明示的に無効化（保険）
+  // 準備中表示
   enableInput(false);
   const prep = $('prep'); if(prep){ prep.textContent = 'トークルームを準備中…'; prep.style.display = 'block'; }
 
