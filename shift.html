@@ -15,7 +15,6 @@ body{
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
   display:flex;flex-direction:column
 }
-/* container */
 .header{padding:16px;font-weight:800;font-size:18px}
 .note{
   background:#fff3cd;color:#663c00;
@@ -23,13 +22,9 @@ body{
   border-bottom:1px solid #ffeeba
 }
 .container{flex:1;max-width:980px;margin:0 auto;padding:12px 16px 80px}
-
-/* パンくず */
 .breadcrumb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 10px}
 .bc{font-size:12px;color:#2563eb;cursor:pointer}
 .sep{opacity:.4}
-
-/* フォルダ一覧 */
 .flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px}
 .fitem{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
 .ficon{width:36px;height:36px;border-radius:8px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
@@ -37,8 +32,6 @@ body{
 .fmeta{min-width:0;display:flex;flex-direction:column;gap:2px}
 .ftitle{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fsub{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* 画像リスト */
 .img-list{display:flex;flex-direction:column;gap:16px}
 .img-item{
   position:relative;
@@ -46,7 +39,7 @@ body{
   padding:10px
 }
 .img-item .label{
-  position:absolute;right:14px;bottom:14px;   /* ← 右下 */
+  position:absolute;right:14px;bottom:14px;
   max-width:calc(100% - 28px);
   font-size:12px;font-weight:700;color:#fff;
   background:rgba(15,23,42,.7);
@@ -55,14 +48,10 @@ body{
   pointer-events:none;
 }
 img{max-width:100%;height:auto;display:block;border-radius:8px}
-
-/* loader */
 .loader{display:flex;justify-content:center;align-items:center;padding:24px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .empty{padding:24px;text-align:center;opacity:.7}
-
-/* bottom nav */
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
 .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
 .bottom-nav .material-icons{font-size:24px;color:#0f172a}
@@ -167,22 +156,43 @@ async function loadFolder(folderId,showLoading){
     if(showLoading){ $('loader').style.display='flex'; }
     const res=await callServer({ action:'shiftChildren', idToken:liff.getIDToken(), folderId });
     renderFolders(res.folders||[]); renderImages(res.images||[]);
+    $('empty').style.display = (!res.folders?.length && !res.images?.length) ? '' : 'none';
   }catch(e){
-    console.error(e); $('empty').style.display=''; $('foldersSec').style.display='none'; $('imagesSec').style.display='none';
-  }finally{ $('loader').style.display='none'; }
+    console.error(e);
+    $('empty').textContent = 'フォルダの読み込みに失敗しました：' + (e?.message || e);
+    $('empty').style.display='';
+    $('foldersSec').style.display='none';
+    $('imagesSec').style.display='none';
+  }finally{
+    $('loader').style.display='none';
+  }
 }
 
 /* 初期化 */
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
-  const st=await callServer({ idToken:liff.getIDToken(), action:'status' });
-  if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-  const root=await callServer({ action:'shiftRoots', idToken:liff.getIDToken() });
-  trail.length=0; trail.push({id:root.folder.id,name:root.folder.name});
-  renderBreadcrumb(); renderFolders(root.folders||[]); renderImages(root.images||[]);
-  $('loader').style.display='none';
+  try{
+    const st=await callServer({ idToken:liff.getIDToken(), action:'status' });
+    if(!st.bound){ location.replace(URL_REGISTER); return; }
+
+    const root=await callServer({ action:'shiftRoots', idToken:liff.getIDToken() });
+    trail.length=0; trail.push({id:root.folder.id,name:root.folder.name});
+    renderBreadcrumb();
+    renderFolders(root.folders||[]);
+    renderImages(root.images||[]);
+    $('empty').style.display = (!root.folders?.length && !root.images?.length) ? '' : 'none';
+  }catch(e){
+    console.error(e);
+    $('empty').textContent = 'シフト一覧の取得に失敗しました：' + (e?.message || e);
+    $('empty').style.display = '';
+    $('foldersSec').style.display='none';
+    $('imagesSec').style.display='none';
+  }finally{
+    $('loader').style.display='none';
+  }
+
   setupUnreadBadge();
 })();
 
