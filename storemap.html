@@ -39,18 +39,18 @@
       <div id="grid" class="grid" style="--cols:1"></div>
     </div>
     <div class="search">
-      <input id="inputQuery" type="text" placeholder="JANコード">
+      <input id="inputQuery" type="text" placeholder="JAN（13桁）またはキーワード">
       <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
       <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
     </div>
-    <div class="loader" id="loader"><div class="spin"></div><div>地図を読み込んでいます…</div></div>
+    <div class="loader" id="loader"><div class="spin"></div><div>地図/棚番を読み込んでいます…</div></div>
     <div class="status" id="status"></div>
   </div>
 
 <script>
 /* ==== 設定（差し替え） ==== */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz9aihApIBv2BsaLJ1FgsEnrN9jFnBQ4W7lE8wXZlfa2DbGj_0X5-9dHggRcq1LfEKJnA/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyCvAmNL8M5Yfov0-AxqBt_K5n1l-fBzxqT0lxUDSzdaT7h4a4WRI-PdEeXmSuvVRdGHw/exec";
 
 /* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
@@ -64,11 +64,11 @@ async function callServer(payload){
 
 /* ==== 状態 ==== */
 let current = { rows:0, cols:0, cells:{}, merges:[] };
-let ownerMap = {};       // 'r:c' -> 'anchorR:anchorC'
-let spanMap  = {};       // 'anchorR:anchorC' -> {rs, cs}
-let elemMap  = {};       // 'anchorR:anchorC' -> HTMLElement
+let ownerMap = {}; // 'r:c' -> 'anchorR:anchorC'
+let spanMap  = {}; // 'anchorR:anchorC' -> {rs, cs}
+let elemMap  = {}; // 'anchorR:anchorC' -> HTMLElement
 
-/* 横幅ぴったりに最小セルサイズでフィット */
+/* 横幅フィット */
 function fitToWidth(){
   const view = $('view'); const cols = Math.max(1, current.cols||1);
   const w = view.clientWidth;
@@ -84,13 +84,13 @@ function buildMergeMaps(){
     spanMap[anchor] = { rs:m.rs, cs:m.cs };
     for(let rr=m.r; rr<m.r+m.rs; rr++){
       for(let cc=m.c; cc<m.c+m.cs; cc++){
-        ownerMap[`${rr}:${cc}`] = anchor; // 内部セルもアンカー紐付け
+        ownerMap[`${rr}:${cc}`] = anchor;
       }
     }
   });
 }
 
-/* 描画（結合セルはアンカーのみ生成して span） */
+/* 描画（結合セルはアンカーのみ生成） */
 function renderGrid(){
   const grid = $('grid'); grid.style.setProperty('--cols', String(current.cols||1)); grid.innerHTML='';
   elemMap = {};
@@ -101,8 +101,7 @@ function renderGrid(){
     for(let c=0;c<cols;c++){
       const key = `${r}:${c}`;
       const owner = ownerMap[key];
-      // マージ内部セルはスキップ（アンカーのみ描画）
-      if(owner && owner !== key) continue;
+      if(owner && owner !== key) continue; // 内側セルはスキップ
 
       const d = cells[key] || null;
       const div = document.createElement('div');
@@ -119,44 +118,91 @@ function renderGrid(){
       div.style.borderBottom = (b.b ? `var(--border) solid var(--border-color)` : 'none');
       div.style.borderLeft   = (b.l ? `var(--border) solid var(--border-color)` : 'none');
 
-      // マージ span
       const sp = spanMap[key];
       if(sp){ div.style.gridColumn = `span ${sp.cs}`; div.style.gridRow = `span ${sp.rs}`; }
 
-      // ラベルは常時表示
       if(d && (d.v || d.n)){
         const span = document.createElement('span');
         span.className = 'label';
         span.textContent = String(d.v || d.n || '');
         div.appendChild(span);
       }
-
       frag.appendChild(div);
-      elemMap[key] = div; // アンカーの要素登録
+      elemMap[key] = div;
     }
   }
   grid.appendChild(frag);
   fitToWidth();
 }
 
-/* 検索：内部セルにヒットしてもアンカーを強調 */
+/* ハイライト制御 */
 function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit')); }
 function getAnchorKey(r,c){
   const k = `${r}:${c}`;
-  return ownerMap[k] || k; // 非マージは自分、マージはアンカーに寄せる
+  return ownerMap[k] || k;
 }
-function search(){
+
+/* ====== 13桁JAN → 棚番→セル強調 ====== */
+async function searchByJan(jan){
+  $('status').textContent = '';
+  try{
+    $('loader').style.display='flex';
+    const res = await callServer({ action:'lookupJan', idToken:liff.getIDToken(), jan });
+    if(!res.ok || !res.shelves || !res.shelves.length){
+      $('status').textContent = '該当する棚番が見つかりません';
+      return;
+    }
+    const shelves = res.shelves.map(String);
+    // 地図上で棚番セルを強調（完全一致）
+    highlightShelves(shelves);
+    const msg = `JAN ${res.jan} → 棚番 ${shelves.join(', ')} を表示`;
+    $('status').textContent = msg;
+  }catch(e){
+    console.error(e);
+    $('status').textContent = 'JAN検索でエラー: ' + (e?.message||e);
+  }finally{
+    $('loader').style.display='none';
+  }
+}
+
+/* 棚番文字列の配列でセル強調（結合セルはアンカーに寄せる） */
+function highlightShelves(shelves){
   clearHits();
-  const q = $('inputQuery').value.trim(); if(!q) return;
+  const set = new Set(shelves.map(s=>s.trim()));
+  const cells = current.cells || {};
+  let firstEl = null;
+  const seen = new Set(); // 同じアンカー重複回避
+
+  Object.entries(cells).forEach(([key,d])=>{
+    const [r,c] = key.split(':').map(Number);
+    const v = String(d.v||'').trim();
+    if(!set.has(v)) return;
+    const anchor = getAnchorKey(r,c);
+    if(seen.has(anchor)) return;
+    const el = elemMap[anchor];
+    if(el){
+      el.classList.add('hit');
+      if(!firstEl) firstEl = el;
+      seen.add(anchor);
+    }
+  });
+
+  if(firstEl){ firstEl.scrollIntoView({behavior:'smooth', block:'center', inline:'center'}); }
+  if(!seen.size){ $('status').textContent = '棚番は見つかりましたが、Floor1 上の該当セルが見つかりませんでした。'; }
+}
+
+/* ====== 文字検索（従来） ====== */
+function searchText(q){
+  clearHits();
   const cells = current.cells || {};
   let first = null, count = 0, seen = new Set();
 
-  Object.entries(cells).forEach(([key, d])=>{
+  Object.entries(cells).forEach(([key,d])=>{
     const [r,c] = key.split(':').map(Number);
     const txt = (d.v||'') + ' ' + (d.n||'');
     if(txt && txt.toLowerCase().includes(q.toLowerCase())){
       const anchor = getAnchorKey(r,c);
-      if(seen.has(anchor)) return; // 同じ結合セルは1回だけ
+      if(seen.has(anchor)) return;
       seen.add(anchor);
       const el = elemMap[anchor];
       if(el){
@@ -170,7 +216,7 @@ function search(){
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/* 読み込み */
+/* ==== 読み込み ==== */
 async function loadMap(){
   try{
     $('loader').style.display='flex'; $('status').textContent='';
@@ -192,15 +238,24 @@ async function loadMap(){
   }
 }
 
-/* 初期化 & イベント */
+/* ==== 初期化・イベント ==== */
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
   await loadMap();
 })();
-$('btnSearch').addEventListener('click', search);
+
+$('btnSearch').addEventListener('click', ()=>{
+  const q = $('inputQuery').value.trim();
+  if(/^\d{13}$/.test(q)){ searchByJan(q); } else { searchText(q); }
+});
+$('inputQuery').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const q = $('inputQuery').value.trim();
+    if(/^\d{13}$/.test(q)){ searchByJan(q); } else { searchText(q); }
+  }
+});
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
-$('inputQuery').addEventListener('keydown', e=>{ if(e.key==='Enter') search(); });
 window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
 </script>
 </body>
