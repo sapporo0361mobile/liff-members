@@ -15,20 +15,15 @@
   .header{padding:14px 16px 8px;font-weight:800;font-size:18px}
   .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 12px 16px;width:100%;max-width:100%}
 
-  /* 地図ビュー（横幅いっぱい） */
   .view{position:relative;flex:0 0 auto;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff;overflow:hidden}
-  .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);width:100%;height:auto}
+  .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);width:100%}
   .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
   .cell .label{position:absolute;left:2px;top:2px;font-size:10px;font-weight:700;padding:2px 4px;border-radius:6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.65)}
   .cell.dark .label{background:rgba(0,0,0,.35);color:#fff}
   .hit{outline:2px solid #22c55e;outline-offset:-2px;z-index:1}
 
-  /* 検索バー（地図の下だけ） */
   .search{display:flex;gap:8px;align-items:center;margin-top:10px}
-  .search input{
-    flex:1 1 auto;appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;
-    padding:10px 12px;font-size:14px
-  }
+  .search input{flex:1 1 auto;appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px}
   .btn{appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;height:40px}
   .btn.secondary{background:#e2e8f0;color:#0f172a}
   .loader{display:none;gap:8px;align-items:center;margin:4px 0 0 0;color:#334155;font-size:14px}
@@ -40,14 +35,11 @@
 <body>
   <div class="header">売場サーチ（店内地図）</div>
   <div class="container">
-    <!-- 地図（横幅にフィット。高さはセル計算で自動） -->
     <div id="view" class="view" aria-label="店内地図ビュー">
       <div id="grid" class="grid" style="--cols:1"></div>
     </div>
-
-    <!-- 検索欄（地図の下にのみ配置） -->
     <div class="search">
-      <input id="inputQuery" type="text" placeholder="JANコード">
+      <input id="inputQuery" type="text" placeholder="例: 惣菜 / A23 など">
       <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
       <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
     </div>
@@ -56,11 +48,11 @@
   </div>
 
 <script>
-/* ===== 設定（差し替えてください） ===== */
-const LIFF_ID = "2007972627-vnAq4qbB"; // 例: "2007xxxxxxx-xxxxxxxx"
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwAVwH6b8UJ9NaqLC-tQqnrFcOzaImGHIgVyIhBmq1TCy-NrtcfqPvqHnbUOWhG5cDLYQ/exec"; // 例: "https://script.google.com/macros/s/XXXXXXXX/exec"
+/* ==== 設定（差し替え） ==== */
+const LIFF_ID = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz9aihApIBv2BsaLJ1FgsEnrN9jFnBQ4W7lE8wXZlfa2DbGj_0X5-9dHggRcq1LfEKJnA/exec";
 
-/* ===== ユーティリティ ===== */
+/* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
 const rgbToCss = (rgb)=>`rgb(${Math.round((rgb?.red??1)*255)},${Math.round((rgb?.green??1)*255)},${Math.round((rgb?.blue??1)*255)})`;
 const isDark = (rgb)=>{ const r=(rgb?.red??1),g=(rgb?.green??1),b=(rgb?.blue??1); return (0.2126*r+0.7152*g+0.0722*b)<0.5; };
@@ -70,32 +62,48 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
 
-/* ===== 状態 ===== */
-let current = { rows:0, cols:0, cells:{} };
+/* ==== 状態 ==== */
+let current = { rows:0, cols:0, cells:{}, merges:[] };
+let ownerMap = {};       // 'r:c' -> 'anchorR:anchorC'
+let spanMap  = {};       // 'anchorR:anchorC' -> {rs, cs}
+let elemMap  = {};       // 'anchorR:anchorC' -> HTMLElement
 
-/* ===== レイアウト：横幅いっぱいに“最小ズーム”で自動フィット =====
-   → 列数に対してセルpxを算出して grid 幅を画面幅にピッタリ合わせます */
+/* 横幅ぴったりに最小セルサイズでフィット */
 function fitToWidth(){
   const view = $('view'); const cols = Math.max(1, current.cols||1);
-  // grid の左右の内側余白をほぼゼロ設計にしているため、そのままクライアント幅で割る
   const w = view.clientWidth;
-  const px = Math.max(2, Math.floor(w / cols)); // 2px未満は視認しづらいので2に丸め
+  const px = Math.max(2, Math.floor(w / cols));
   document.documentElement.style.setProperty('--cell', px+'px');
 }
 
-/* ===== 描画 ===== */
-function renderGrid(){
-  const grid = $('grid');
-  grid.style.setProperty('--cols', String(current.cols||1));
-  grid.innerHTML = '';
+/* マージ情報をマップ化 */
+function buildMergeMaps(){
+  ownerMap = {}; spanMap = {};
+  (current.merges||[]).forEach(m=>{
+    const anchor = `${m.r}:${m.c}`;
+    spanMap[anchor] = { rs:m.rs, cs:m.cs };
+    for(let rr=m.r; rr<m.r+m.rs; rr++){
+      for(let cc=m.c; cc<m.c+m.cs; cc++){
+        ownerMap[`${rr}:${cc}`] = anchor; // 内部セルもアンカー紐付け
+      }
+    }
+  });
+}
 
+/* 描画（結合セルはアンカーのみ生成して span） */
+function renderGrid(){
+  const grid = $('grid'); grid.style.setProperty('--cols', String(current.cols||1)); grid.innerHTML='';
+  elemMap = {};
   const frag = document.createDocumentFragment();
-  const cells = current.cells || {};
-  const rows = current.rows||0, cols = current.cols||0;
+  const rows = current.rows||0, cols = current.cols||0, cells = current.cells||{};
 
   for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
-      const key = r+':'+c;
+      const key = `${r}:${c}`;
+      const owner = ownerMap[key];
+      // マージ内部セルはスキップ（アンカーのみ描画）
+      if(owner && owner !== key) continue;
+
       const d = cells[key] || null;
       const div = document.createElement('div');
       div.className = 'cell';
@@ -111,48 +119,69 @@ function renderGrid(){
       div.style.borderBottom = (b.b ? `var(--border) solid var(--border-color)` : 'none');
       div.style.borderLeft   = (b.l ? `var(--border) solid var(--border-color)` : 'none');
 
-      // ラベルは常時表示（UIを減らす要件に合わせる）
+      // マージ span
+      const sp = spanMap[key];
+      if(sp){ div.style.gridColumn = `span ${sp.cs}`; div.style.gridRow = `span ${sp.rs}`; }
+
+      // ラベルは常時表示
       if(d && (d.v || d.n)){
         const span = document.createElement('span');
         span.className = 'label';
         span.textContent = String(d.v || d.n || '');
         div.appendChild(span);
       }
+
       frag.appendChild(div);
+      elemMap[key] = div; // アンカーの要素登録
     }
   }
   grid.appendChild(frag);
-
-  // 横幅に最小ズームでフィット
   fitToWidth();
 }
 
-/* ===== 検索 ===== */
+/* 検索：内部セルにヒットしてもアンカーを強調 */
 function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit')); }
+function getAnchorKey(r,c){
+  const k = `${r}:${c}`;
+  return ownerMap[k] || k; // 非マージは自分、マージはアンカーに寄せる
+}
 function search(){
   clearHits();
   const q = $('inputQuery').value.trim(); if(!q) return;
-  const cells = current.cells || {}; const grid = $('grid'); let first=null, count=0;
-  Object.entries(cells).forEach(([key,d])=>{
+  const cells = current.cells || {};
+  let first = null, count = 0, seen = new Set();
+
+  Object.entries(cells).forEach(([key, d])=>{
     const [r,c] = key.split(':').map(Number);
-    const v = (d.v||'') + ' ' + (d.n||'');
-    if(v && v.toLowerCase().includes(q.toLowerCase())){
-      const idx = r*current.cols + c;
-      const el = grid.children[idx];
-      if(el){ el.classList.add('hit'); if(!first) first=el; count++; }
+    const txt = (d.v||'') + ' ' + (d.n||'');
+    if(txt && txt.toLowerCase().includes(q.toLowerCase())){
+      const anchor = getAnchorKey(r,c);
+      if(seen.has(anchor)) return; // 同じ結合セルは1回だけ
+      seen.add(anchor);
+      const el = elemMap[anchor];
+      if(el){
+        el.classList.add('hit');
+        if(!first) first = el;
+        count++;
+      }
     }
   });
-  if(first) first.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
+  if(first) first.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/* ===== 読み込み ===== */
+/* 読み込み */
 async function loadMap(){
   try{
     $('loader').style.display='flex'; $('status').textContent='';
-    // GAS 側の既定（A1:BX68 / STOREMAP_SPREADSHEET_ID）を使うため、ここでは idToken 以外渡さない
     const res = await callServer({ action:'storeMap', idToken:liff.getIDToken() });
-    current = { rows: Number(res.rows||0), cols: Number(res.cols||0), cells: res.cells||{} };
+    current = {
+      rows: Number(res.rows||0),
+      cols: Number(res.cols||0),
+      cells: res.cells || {},
+      merges: res.merges || []
+    };
+    buildMergeMaps();
     renderGrid();
   }catch(e){
     console.error(e);
@@ -163,14 +192,12 @@ async function loadMap(){
   }
 }
 
-/* ===== 初期化 ===== */
+/* 初期化 & イベント */
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
   await loadMap();
 })();
-
-/* ===== イベント ===== */
 $('btnSearch').addEventListener('click', search);
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
 $('inputQuery').addEventListener('keydown', e=>{ if(e.key==='Enter') search(); });
