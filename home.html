@@ -35,15 +35,28 @@
     );
     document.close();
   }
-  function uaLooksLikeLine(){ var ua = navigator.userAgent || ''; return /Line\/|LIFF/i.test(ua); }
-  if(!window.liff){ if(uaLooksLikeLine()){ allow(); } else { block(); } return; }
-  liff.init({ liffId: LIFF_ID }).then(function(){ if(liff.isInClient()){ allow(); } else { block(); } }).catch(function(){ if(uaLooksLikeLine()){ allow(); } else { block(); } });
+  function uaLooksLikeLine(){
+    var ua = navigator.userAgent || '';
+    return /Line\/|LIFF/i.test(ua);
+  }
+  // SDKが無くてもUAでできるだけ判定
+  if(!window.liff){
+    if(uaLooksLikeLine()){ allow(); } else { block(); }
+    return;
+  }
+  // LIFF初期化 → アプリ内かどうかで判定
+  liff.init({ liffId: LIFF_ID }).then(function(){
+    if(liff.isInClient()){ allow(); } else { block(); }
+  }).catch(function(){
+    if(uaLooksLikeLine()){ allow(); } else { block(); }
+  });
 })();
 </script>
-
+  
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalらいable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>ホーム</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box}
@@ -63,7 +76,7 @@ body{
 .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
 .name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
 
-/* バッジ */
+/* バッジを横一列（折り返しなし） */
 .meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
 .meta::-webkit-scrollbar{display:none}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
@@ -75,8 +88,6 @@ body{
 .notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
 .notice-date{font-size:12px;opacity:.6;min-width:84px}
 .notice-text{font-size:14px}
-.notice-text a{color:#2563eb;text-decoration:none}
-.notice-text a:hover{text-decoration:underline}
 
 /* ボトムナビ */
 .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
@@ -107,8 +118,8 @@ body{
       <h3 class="notice-title">お知らせ</h3>
       <div class="notice-list" id="noticeList">
         <div class="notice-item">
-          <div class="notice-date">—</div>
-          <div class="notice-text">読み込み中…</div>
+          <div class="notice-date" id="n0date">—</div>
+          <div class="notice-text" id="n0text">現在お知らせはありません。</div>
         </div>
       </div>
     </section>
@@ -124,99 +135,60 @@ body{
 </nav>
 
 <script>
-const LIFF_ID      = "2007972627-vnAq4qbB";
+const LIFF_ID = "2007972627-vnAq4qbB";
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbykeGrs-JE5lUIctbKs9Y0igDA5e63v5nN-6ZyRMoCYL0PxIIVlBzav1GAEzktihHRqfw/exec";
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
+let unreadTimer = null;
 
-/* 通信 */
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
-function fmtDateLike(iso){
-  if(!iso) return '—';
-  const d = new Date(iso); if(isNaN(d.getTime())) return '—';
-  const z=n=>String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
-}
 
-/* 未読バッジ */
 async function refreshUnread(){
   try{
     const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
     const n = Number(res.unread||0); const b = $('chatBadge');
-    if(!b) return;
-    if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
-    else{ b.style.display='none'; }
-  }catch(e){ /* noop */ }
-}
-
-/* お知らせ描画 */
-function renderNotices(items){
-  const box = $('noticeList'); box.innerHTML = '';
-  if(!items || !items.length){
-    box.innerHTML = `
-      <div class="notice-item">
-        <div class="notice-date">—</div>
-        <div class="notice-text">現在お知らせはありません。</div>
-      </div>`;
-    return;
-  }
-  items.forEach(n=>{
-    const row = document.createElement('div'); row.className = 'notice-item';
-    const d = document.createElement('div');  d.className = 'notice-date'; d.textContent = fmtDateLike(n.date);
-    const t = document.createElement('div');  t.className = 'notice-text';
-    if(n.link){
-      const span = document.createElement('span'); span.textContent = n.text + ' ';
-      const a = document.createElement('a'); a.href = n.link; a.textContent = '詳細'; a.target = '_blank'; a.rel = 'noopener';
-      t.appendChild(span); t.appendChild(a);
-    }else{
-      t.textContent = n.text;
+    if(b){
+      if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
+      else{ b.style.display='none'; }
     }
-    row.appendChild(d); row.appendChild(t);
-    box.appendChild(row);
-  });
+  }catch(e){ console.error(e); }
 }
 
-/* お知らせロード */
-async function loadNotices(){
-  try{
-    const res = await callServer({ action:'notices', idToken: liff.getIDToken(), limit: 10 });
-    renderNotices(res.notices||[]);
-  }catch(e){
-    console.error('notices error', e);
-    renderNotices([]);
-  }
+/* お知らせ（プレースホルダ：最新1件っぽく見せる） */
+function setNoticePlaceholder(){
+  const d = new Date();
+  const z = n => String(n).padStart(2,'0');
+  $('n0date').textContent = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+  $('n0text').textContent = 'ご不明点やご要望等ありましたら…「有原」までお願いいたします！';
 }
 
-/* 初期化 */
 (async ()=>{
   try{
+    $('displayName').textContent = '読み込み中…';
     await liff.init({ liffId: LIFF_ID });
     if(!liff.isLoggedIn()){ liff.login(); return; }
 
-    // 会員ステータス
     const st = await callServer({ idToken: liff.getIDToken(), action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
-    // プロフィール
     const ln = (st.lastName||'').trim(), fn = (st.firstName||'').trim();
     const name = [ln,fn].filter(Boolean).join(' ') || (st.displayName||'職員');
     $('displayName').textContent = name;
-    $('badgeStore').textContent  = st.store || '(未登録)';
-    $('badgeCode').textContent   = st.staffCode || '(未登録)';
+    $('badgeStore').textContent = st.store || '(未登録)';
+    $('badgeCode').textContent = st.staffCode || '(未登録)';
+
     const pf = await liff.getProfile().catch(()=>({pictureUrl:''}));
     if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
 
-    // お知らせ
-    await loadNotices();
+    setNoticePlaceholder();
 
-    // 未読バッジ
     await refreshUnread();
-    setInterval(refreshUnread, 5000);
+    unreadTimer = setInterval(refreshUnread, 5000);
     document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshUnread(); });
   }catch(err){
     console.error(err);
