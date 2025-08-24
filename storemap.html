@@ -43,14 +43,14 @@
       <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
       <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
     </div>
-    <div class="loader" id="loader"><div class="spin"></div><div>地図/棚番を読み込んでいます…</div></div>
+    <div class="loader" id="loader"><div class="spin"></div><div>初期データを読み込んでいます…</div></div>
     <div class="status" id="status"></div>
   </div>
 
 <script>
 /* ==== 設定（差し替え） ==== */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyCvAmNL8M5Yfov0-AxqBt_K5n1l-fBzxqT0lxUDSzdaT7h4a4WRI-PdEeXmSuvVRdGHw/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3x-T3nlRVG5PFrcF_y2NAs3Eg74En_J5Lu2rS9Nb5qb9xCMa97Gu0_54n3Q0nZvBBGA/exec";
 
 /* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
@@ -64,11 +64,13 @@ async function callServer(payload){
 
 /* ==== 状態 ==== */
 let current = { rows:0, cols:0, cells:{}, merges:[] };
-let ownerMap = {}; // 'r:c' -> 'anchorR:anchorC'
-let spanMap  = {}; // 'anchorR:anchorC' -> {rs, cs}
-let elemMap  = {}; // 'anchorR:anchorC' -> HTMLElement
+let ownerMap = {};                 // 'r:c' -> 'anchorR:anchorC'
+let spanMap  = {};                 // 'anchorR:anchorC' -> {rs, cs}
+let elemMap  = {};                 // 'anchorR:anchorC' -> HTMLElement
+let janIndex = {};                 // JAN -> [棚番,...]  （GASから初回で受け取る）
+let shelfToAnchors = new Map();    // 棚番 -> [anchorKey,...]（フロントで構築）
 
-/* 横幅フィット */
+/* 横幅フィット（最小ズームで横いっぱい） */
 function fitToWidth(){
   const view = $('view'); const cols = Math.max(1, current.cols||1);
   const w = view.clientWidth;
@@ -90,7 +92,7 @@ function buildMergeMaps(){
   });
 }
 
-/* 描画（結合セルはアンカーのみ生成） */
+/* 描画（結合セルはアンカーのみ） */
 function renderGrid(){
   const grid = $('grid'); grid.style.setProperty('--cols', String(current.cols||1)); grid.innerHTML='';
   elemMap = {};
@@ -101,7 +103,7 @@ function renderGrid(){
     for(let c=0;c<cols;c++){
       const key = `${r}:${c}`;
       const owner = ownerMap[key];
-      if(owner && owner !== key) continue; // 内側セルはスキップ
+      if(owner && owner !== key) continue;
 
       const d = cells[key] || null;
       const div = document.createElement('div');
@@ -135,104 +137,102 @@ function renderGrid(){
   fitToWidth();
 }
 
-/* ハイライト制御 */
-function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit')); }
-function getAnchorKey(r,c){
-  const k = `${r}:${c}`;
-  return ownerMap[k] || k;
-}
-
-/* ====== 13桁JAN → 棚番→セル強調 ====== */
-async function searchByJan(jan){
-  $('status').textContent = '';
-  try{
-    $('loader').style.display='flex';
-    const res = await callServer({ action:'lookupJan', idToken:liff.getIDToken(), jan });
-    if(!res.ok || !res.shelves || !res.shelves.length){
-      $('status').textContent = '該当する棚番が見つかりません';
-      return;
-    }
-    const shelves = res.shelves.map(String);
-    // 地図上で棚番セルを強調（完全一致）
-    highlightShelves(shelves);
-    const msg = `JAN ${res.jan} → 棚番 ${shelves.join(', ')} を表示`;
-    $('status').textContent = msg;
-  }catch(e){
-    console.error(e);
-    $('status').textContent = 'JAN検索でエラー: ' + (e?.message||e);
-  }finally{
-    $('loader').style.display='none';
-  }
-}
-
-/* 棚番文字列の配列でセル強調（結合セルはアンカーに寄せる） */
-function highlightShelves(shelves){
-  clearHits();
-  const set = new Set(shelves.map(s=>s.trim()));
+/* 棚番 → アンカー要素の索引を構築（描画後に1回でOK） */
+function buildShelfIndex(){
+  shelfToAnchors = new Map();
   const cells = current.cells || {};
-  let firstEl = null;
-  const seen = new Set(); // 同じアンカー重複回避
-
+  const seen = new Set();
   Object.entries(cells).forEach(([key,d])=>{
     const [r,c] = key.split(':').map(Number);
     const v = String(d.v||'').trim();
-    if(!set.has(v)) return;
-    const anchor = getAnchorKey(r,c);
-    if(seen.has(anchor)) return;
-    const el = elemMap[anchor];
-    if(el){
-      el.classList.add('hit');
-      if(!firstEl) firstEl = el;
-      seen.add(anchor);
-    }
+    if(!/^\d+$/.test(v)) return;           // 棚番は数字のみ想定
+    const anchor = ownerMap[key] || key;    // 結合セルならアンカーに寄せる
+    if(seen.has(anchor)) return;            // 同じアンカーは1回だけ代表で登録
+    seen.add(anchor);
+    const list = shelfToAnchors.get(v) || [];
+    list.push(anchor);
+    shelfToAnchors.set(v, list);
   });
-
-  if(firstEl){ firstEl.scrollIntoView({behavior:'smooth', block:'center', inline:'center'}); }
-  if(!seen.size){ $('status').textContent = '棚番は見つかりましたが、Floor1 上の該当セルが見つかりませんでした。'; }
 }
 
-/* ====== 文字検索（従来） ====== */
+/* ハイライト制御 */
+function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit')); }
+function highlightAnchors(anchorKeys){
+  clearHits();
+  let first = null;
+  (anchorKeys||[]).forEach(k=>{
+    const el = elemMap[k];
+    if(el){
+      el.classList.add('hit');
+      if(!first) first = el;
+    }
+  });
+  if(first) first.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+}
+
+/* === JAN（13桁）検索: フロントの索引だけで即時ハイライト === */
+function searchByJanLocal(jan){
+  const shelves = janIndex[jan] || [];
+  if(!shelves.length){
+    $('status').textContent = `JAN ${jan} は見つかりません`;
+    clearHits();
+    return;
+  }
+  const anchors = [];
+  shelves.forEach(s=>{
+    const list = shelfToAnchors.get(String(s)) || [];
+    anchors.push(...list);
+  });
+  if(!anchors.length){
+    $('status').textContent = `棚番は見つかったが、Floor1 上に一致セルがありません: ${shelves.join(', ')}`;
+    clearHits();
+    return;
+  }
+  highlightAnchors(anchors);
+  $('status').textContent = `JAN ${jan} → 棚番 ${shelves.join(', ')} を表示`;
+}
+
+/* 文字検索（セルの値/ノートに含むもの） */
 function searchText(q){
   clearHits();
   const cells = current.cells || {};
-  let first = null, count = 0, seen = new Set();
-
+  let first = null, count = 0, marked = new Set();
   Object.entries(cells).forEach(([key,d])=>{
     const [r,c] = key.split(':').map(Number);
     const txt = (d.v||'') + ' ' + (d.n||'');
-    if(txt && txt.toLowerCase().includes(q.toLowerCase())){
-      const anchor = getAnchorKey(r,c);
-      if(seen.has(anchor)) return;
-      seen.add(anchor);
-      const el = elemMap[anchor];
-      if(el){
-        el.classList.add('hit');
-        if(!first) first = el;
-        count++;
-      }
+    if(!txt || !txt.toLowerCase().includes(q.toLowerCase())) return;
+    const anchor = ownerMap[key] || key;
+    if(marked.has(anchor)) return;
+    marked.add(anchor);
+    const el = elemMap[anchor];
+    if(el){
+      el.classList.add('hit'); count++;
+      if(!first) first = el;
     }
   });
   if(first) first.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/* ==== 読み込み ==== */
-async function loadMap(){
+/* ==== 初期読み込み: initBundle（地図＋JAN索引） ==== */
+async function initLoad(){
   try{
-    $('loader').style.display='flex'; $('status').textContent='';
-    const res = await callServer({ action:'storeMap', idToken:liff.getIDToken() });
-    current = {
-      rows: Number(res.rows||0),
-      cols: Number(res.cols||0),
-      cells: res.cells || {},
-      merges: res.merges || []
-    };
+    $('loader').style.display='flex'; $('status').textContent = '';
+    const res = await callServer({ action:'initBundle', idToken:liff.getIDToken() });
+    // 地図
+    const m = res.map || {};
+    current = { rows:+(m.rows||0), cols:+(m.cols||0), cells:m.cells||{}, merges:m.merges||[] };
+    // 索引
+    janIndex = res.index || {};
+    // 表示
     buildMergeMaps();
     renderGrid();
+    buildShelfIndex();
+    $('status').textContent = `初期読込完了（JAN: ${res.janCount||0} 件）`;
   }catch(e){
     console.error(e);
-    $('status').textContent = '地図の取得に失敗しました: ' + (e?.message||e);
-    alert('地図の取得に失敗しました：' + (e?.message || e));
+    $('status').textContent = '初期読み込みに失敗: ' + (e?.message||e);
+    alert('初期読み込みに失敗しました：' + (e?.message || e));
   }finally{
     $('loader').style.display='none';
   }
@@ -242,17 +242,19 @@ async function loadMap(){
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
-  await loadMap();
+  await initLoad();
 })();
 
 $('btnSearch').addEventListener('click', ()=>{
   const q = $('inputQuery').value.trim();
-  if(/^\d{13}$/.test(q)){ searchByJan(q); } else { searchText(q); }
+  if(/^\d{13}$/.test(q)) searchByJanLocal(q);
+  else searchText(q);
 });
 $('inputQuery').addEventListener('keydown', e=>{
   if(e.key==='Enter'){
     const q = $('inputQuery').value.trim();
-    if(/^\d{13}$/.test(q)){ searchByJan(q); } else { searchText(q); }
+    if(/^\d{13}$/.test(q)) searchByJanLocal(q);
+    else searchText(q);
   }
 });
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
