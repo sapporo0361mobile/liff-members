@@ -1,9 +1,6 @@
 <!doctype html>
 <html lang="ja">
 <head>
-
-
-  
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>売場サーチ（店内地図）</title>
@@ -21,8 +18,14 @@
   .view{position:relative;flex:0 0 auto;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff;overflow:hidden}
   .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);width:100%}
   .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
-  .cell .label{position:absolute;left:2px;top:2px;font-size:10px;font-weight:700;padding:2px 4px;border-radius:6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.65)}
-  .cell.dark .label{background:rgba(0,0,0,.35);color:#fff}
+  .cell .label{
+    position:absolute;left:2px;top:2px;font-size:10px;font-weight:700;
+    padding:0 2px;border-radius:4px;max-width:100%;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    background:transparent; /*←色被りを避ける*/
+    color:inherit;
+    text-shadow:0 1px 2px rgba(0,0,0,.3), 0 0 2px rgba(255,255,255,.1);
+  }
   .hit{outline:2px solid #22c55e;outline-offset:-2px;z-index:1}
 
   .search{display:flex;gap:8px;align-items:center;margin-top:10px}
@@ -53,11 +56,17 @@
 <script>
 /* ==== 設定（差し替え） ==== */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxr3mF9oKzTBX-XwKyWD315-NP9apWS-UI9-vLUDKQEoavcA55ykgyN0Ea4zvKkDVxayQ/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycby7mwDBYMcYRpl3Xbdwx8TFCV5Kn8RK9vVmhHHJEM0yuRJbtiwlHJwMjkoUC-1sjBPyqg/exec";
 
 /* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
-const rgbToCss = (rgb)=>`rgb(${Math.round((rgb?.red??1)*255)},${Math.round((rgb?.green??1)*255)},${Math.round((rgb?.blue??1)*255)})`;
+function rgbToCss(rgb){
+  const r = Math.round((rgb?.red??1)*255);
+  const g = Math.round((rgb?.green??1)*255);
+  const b = Math.round((rgb?.blue??1)*255);
+  const a = (typeof rgb?.alpha === 'number') ? rgb.alpha : 1;
+  return (a < 1) ? `rgba(${r},${g},${b},${a.toFixed(3)})` : `rgb(${r},${g},${b})`;
+}
 const isDark = (rgb)=>{ const r=(rgb?.red??1),g=(rgb?.green??1),b=(rgb?.blue??1); return (0.2126*r+0.7152*g+0.0722*b)<0.5; };
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -70,8 +79,8 @@ let current = { rows:0, cols:0, cells:{}, merges:[] };
 let ownerMap = {};                 // 'r:c' -> 'anchorR:anchorC'
 let spanMap  = {};                 // 'anchorR:anchorC' -> {rs, cs}
 let elemMap  = {};                 // 'anchorR:anchorC' -> HTMLElement
-let janIndex = {};                 // JAN -> [棚番,...]  （GASから初回で受け取る）
-let shelfToAnchors = new Map();    // 棚番 -> [anchorKey,...]（フロントで構築）
+let janIndex = {};                 // JAN -> [棚番,...]
+let shelfToAnchors = new Map();    // 棚番 -> [anchorKey,...]
 
 /* 横幅フィット（最小ズームで横いっぱい） */
 function fitToWidth(){
@@ -115,7 +124,6 @@ function renderGrid(){
 
       const bg = d?.bg || {red:1,green:1,blue:1};
       div.style.background = rgbToCss(bg);
-      if(isDark(bg)) div.classList.add('dark');
 
       const b = d?.b || {};
       div.style.borderTop    = (b.t ? `var(--border) solid var(--border-color)` : 'none');
@@ -129,6 +137,8 @@ function renderGrid(){
       if(d && (d.v || d.n)){
         const span = document.createElement('span');
         span.className = 'label';
+        // 背景は透明、色は親の contrast をそのまま使う（isDarkで文字色を決めない）
+        span.style.color = isDark(bg) ? '#fff' : '#0f172a';
         span.textContent = String(d.v || d.n || '');
         div.appendChild(span);
       }
@@ -140,7 +150,7 @@ function renderGrid(){
   fitToWidth();
 }
 
-/* 棚番 → アンカー要素の索引を構築（描画後に1回でOK） */
+/* 棚番 → アンカー要素の索引を構築 */
 function buildShelfIndex(){
   shelfToAnchors = new Map();
   const cells = current.cells || {};
@@ -148,9 +158,9 @@ function buildShelfIndex(){
   Object.entries(cells).forEach(([key,d])=>{
     const [r,c] = key.split(':').map(Number);
     const v = String(d.v||'').trim();
-    if(!/^\d+$/.test(v)) return;           // 棚番は数字のみ想定
-    const anchor = ownerMap[key] || key;    // 結合セルならアンカーに寄せる
-    if(seen.has(anchor)) return;            // 同じアンカーは1回だけ代表で登録
+    if(!/^\d+$/.test(v)) return;
+    const anchor = ownerMap[key] || key;
+    if(seen.has(anchor)) return;
     seen.add(anchor);
     const list = shelfToAnchors.get(v) || [];
     list.push(anchor);
@@ -173,7 +183,7 @@ function highlightAnchors(anchorKeys){
   if(first) first.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
 }
 
-/* === JAN（13桁）検索: フロントの索引だけで即時ハイライト === */
+/* === JAN（13桁）検索: ローカル索引のみで即時 === */
 function searchByJanLocal(jan){
   const shelves = janIndex[jan] || [];
   if(!shelves.length){
@@ -195,7 +205,7 @@ function searchByJanLocal(jan){
   $('status').textContent = `JAN ${jan} → 棚番 ${shelves.join(', ')} を表示`;
 }
 
-/* 文字検索（セルの値/ノートに含むもの） */
+/* 文字検索（セル値/ノート） */
 function searchText(q){
   clearHits();
   const cells = current.cells || {};
@@ -217,17 +227,24 @@ function searchText(q){
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/* ==== 初期読み込み: initBundle（地図＋JAN索引） ==== */
+/* ==== 初期読み込み（地図 + JAN索引） ==== */
 async function initLoad(){
   try{
     $('loader').style.display='flex'; $('status').textContent = '';
-    const res = await callServer({ action:'initBundle', idToken:liff.getIDToken() });
-    // 地図
+    let res = await callServer({ action:'initBundle', idToken:liff.getIDToken() });
+    if(!res.ok && /unknown action/i.test(res.error||'')){
+      // フォールバック（古いGAS用）
+      const mapRes = await callServer({ action:'storeMap', idToken:liff.getIDToken() });
+      if(!mapRes.ok) throw new Error(mapRes.error||'storeMap failed');
+      let idxRes = await callServer({ action:'dataIndex', idToken:liff.getIDToken() }).catch(()=>null);
+      res = { ok:true, map: mapRes, index: (idxRes&&idxRes.ok)? idxRes.index : {}, janCount: (idxRes&&idxRes.ok)? idxRes.count : 0 };
+    }
+    if(!res.ok) throw new Error(res.error||'init failed');
+
     const m = res.map || {};
     current = { rows:+(m.rows||0), cols:+(m.cols||0), cells:m.cells||{}, merges:m.merges||[] };
-    // 索引
     janIndex = res.index || {};
-    // 表示
+
     buildMergeMaps();
     renderGrid();
     buildShelfIndex();
@@ -247,7 +264,6 @@ async function initLoad(){
   if(!liff.isLoggedIn()){ liff.login(); return; }
   await initLoad();
 })();
-
 $('btnSearch').addEventListener('click', ()=>{
   const q = $('inputQuery').value.trim();
   if(/^\d{13}$/.test(q)) searchByJanLocal(q);
