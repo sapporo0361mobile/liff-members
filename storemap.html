@@ -7,12 +7,12 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-  :root{ --cell: 18px; --border: 1px; --border-color:#1f2937; }
+  :root{ --cell:18px; --border:1px; --border-color:#1f2937; }
   *,*::before,*::after{box-sizing:border-box}
   html,body{height:100%;overflow:hidden}
   body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
   .header{padding:14px 16px 8px;font-weight:800;font-size:18px}
-  .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 16px 80px;max-width:1100px;margin:0 auto;width:100%}
+  .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 16px 16px;max-width:1100px;margin:0 auto;width:100%}
 
   .controls{display:grid;gap:8px;grid-template-columns:1fr 120px 160px auto auto;align-items:end}
   @media (max-width:820px){ .controls{grid-template-columns:1fr 1fr} .row-opts{grid-column:1/-1} }
@@ -53,14 +53,15 @@
         <input id="inputSheetId" type="text" placeholder="例: 1AbCdEf...（空でOK）">
       </div>
       <div class="field"><div class="label">シート名</div><input id="inputSheetName" type="text" value="Floor1"></div>
-      <div class="field"><div class="label">範囲</div><input id="inputRange" type="text" value="A1:BX75"></div>
+      <div class="field"><div class="label">範囲</div><input id="inputRange" type="text" value="A1:BX68"></div>
       <button id="btnLoad" class="btn"><span class="material-icons">refresh</span>読み込む</button>
       <div class="loader" id="loader"><div class="spin"></div><div>読み込み中...</div></div>
 
       <div class="row-opts">
         <div class="opt"><span class="kv">セル</span>
-          <input id="sliderSize" type="range" min="10" max="48" step="1" value="18"><span class="kv" id="sizeVal">18px</span>
-          <button class="btn secondary" id="btnFit" style="margin-left:8px"><span class="material-icons">fit_screen</span>幅にフィット</button>
+          <input id="sliderSize" type="range" min="6" max="48" step="1" value="18"><span class="kv" id="sizeVal">18px</span>
+          <button class="btn secondary" id="btnFitW"  style="margin-left:8px"><span class="material-icons">fit_screen</span>幅にフィット</button>
+          <button class="btn secondary" id="btnFitAll"><span class="material-icons">fullscreen</span>全体にフィット</button>
         </div>
         <label class="opt"><input id="cbText" type="checkbox" checked> 文字を表示</label>
         <div class="opt"><span class="kv">検索</span>
@@ -84,29 +85,18 @@
 
 <script>
 /* ==== 設定 ==== */
-// ← あなたの LIFF ID
 const LIFF_ID = "2007972627-vnAq4qbB";
-// ← 上でデプロイした「専用GAS」の WebアプリURL に置き換え
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbw2q_16ZDrEZfQE2jSYdlFl6Utc8y4IYqZMVYRVaXuMZhwrHv4t0fSPztRJk8X_qmG_ug/exec";
+// ★ 専用GASのWebアプリURLに置換
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwAVwH6b8UJ9NaqLC-tQqnrFcOzaImGHIgVyIhBmq1TCy-NrtcfqPvqHnbUOWhG5cDLYQ/exec";
 
 /* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
-const rgbToCss = (rgb)=> {
-  const r = Math.round((rgb?.red??1)*255);
-  const g = Math.round((rgb?.green??1)*255);
-  const b = Math.round((rgb?.blue??1)*255);
-  return `rgb(${r},${g},${b})`;
-};
-const isDark = (rgb)=>{
-  const r=(rgb?.red??1), g=(rgb?.green??1), b=(rgb?.blue??1);
-  const L = 0.2126*r + 0.7152*g + 0.0722*b;
-  return L < 0.5;
-};
+const rgbToCss = (rgb)=>`rgb(${Math.round((rgb?.red??1)*255)},${Math.round((rgb?.green??1)*255)},${Math.round((rgb?.blue??1)*255)})`;
+const isDark = (rgb)=>{ const r=(rgb?.red??1),g=(rgb?.green??1),b=(rgb?.blue??1); return (0.2126*r+0.7152*g+0.0722*b)<0.5; };
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
-  return j;
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
 
 /* ==== 状態 ==== */
@@ -143,10 +133,8 @@ function renderGrid(){
       div.style.borderLeft   = (b.l ? `var(--border) solid var(--border-color)` : 'none');
 
       if(showText && d && (d.v || d.n)){
-        const span = document.createElement('span');
-        span.className = 'label';
-        span.textContent = String(d.v || d.n || '');
-        div.appendChild(span);
+        const span = document.createElement('span'); span.className='label';
+        span.textContent = String(d.v || d.n || ''); div.appendChild(span);
       }
       div.addEventListener('click', ()=>showPanel(r,c,d));
       frag.appendChild(div);
@@ -156,7 +144,7 @@ function renderGrid(){
 }
 
 function showPanel(r,c,d){
-  const pnl = $('panel'); pnl.style.display='';
+  $('panel').style.display='';
   $('pCoord').textContent = `R${r+1} / C${c+1}`;
   $('pValue').textContent = d?.v || '(なし)';
   $('pNote').textContent  = d?.n || '—';
@@ -167,34 +155,48 @@ function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.clas
 function search(){
   clearHits();
   const q = $('inputQuery').value.trim(); if(!q) return;
-  const cells = current.cells || {}; const grid = $('grid');
-  let first = null;
+  const cells = current.cells || {}; const grid = $('grid'); let first=null;
   Object.entries(cells).forEach(([key,d])=>{
     const [r,c] = key.split(':').map(Number);
     const v = (d.v||'') + ' ' + (d.n||'');
     if(v && v.toLowerCase().includes(q.toLowerCase())){
       const idx = r*current.cols + c;
       const el = grid.children[idx];
-      if(el){ el.classList.add('hit'); if(!first) first = el; }
+      if(el){ el.classList.add('hit'); if(!first) first=el; }
     }
   });
-  if(first){ first.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }
+  if(first) first.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
 }
 
-/* ==== セルサイズ ==== */
+/* ==== セルサイズ（フィット系） ==== */
 function setCellSize(px){ document.documentElement.style.setProperty('--cell', px+'px'); $('sizeVal').textContent = px+'px'; }
 function getCellSize(){ return Number(getComputedStyle(document.documentElement).getPropertyValue('--cell').replace('px','')) || 18; }
+
+function fitToWidth(){
+  const view = $('view'); const cols = current.cols || 1;
+  const w = view.clientWidth - 32; // gridの左右マージン相当
+  const px = Math.max(6, Math.min(64, Math.floor(w / cols)));
+  $('sliderSize').value = String(px); setCellSize(px);
+}
+
+function fitToAll(){
+  const view = $('view'); const cols = current.cols || 1; const rows = current.rows || 1;
+  const w = view.clientWidth  - 32; // grid左右マージン
+  const h = view.clientHeight - 32; // grid上下マージン
+  const pxW = Math.floor(w / cols);
+  const pxH = Math.floor(h / rows);
+  const px  = Math.max(6, Math.min(64, Math.min(pxW, pxH)));
+  $('sliderSize').value = String(px); setCellSize(px);
+}
+
+/* ==== イベント ==== */
 $('sliderSize').addEventListener('input', e=> setCellSize(Number(e.target.value)));
 $('cbText').addEventListener('change', renderGrid);
 $('btnSearch').addEventListener('click', search);
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); });
-$('btnFit').addEventListener('click', fitToWidth);
-function fitToWidth(){
-  const view = $('view'); const cols = current.cols || 1;
-  const w = view.clientWidth - 32; // 左右余白ぶん
-  let px = Math.max(8, Math.min(64, Math.floor(w / cols)));
-  $('sliderSize').value = String(px); setCellSize(px);
-}
+$('btnFitW').addEventListener('click', fitToWidth);
+$('btnFitAll').addEventListener('click', fitToAll);
+window.addEventListener('resize', ()=>{ /* レイアウト変化時は全体フィット */ fitToAll(); });
 
 /* ==== 読み込み ==== */
 async function loadMap(){
@@ -202,11 +204,14 @@ async function loadMap(){
     $('loader').style.display='flex';
     const spreadsheetId = $('inputSheetId').value.trim() || undefined;
     const sheetName = $('inputSheetName').value.trim() || 'Floor1';
-    const rangeA1 = $('inputRange').value.trim() || 'A1:BX75';
+    const rangeA1 = $('inputRange').value.trim() || 'A1:BX68';
 
     const res = await callServer({ action:'storeMap', idToken:liff.getIDToken(), spreadsheetId, sheetName, rangeA1 });
     current = { rows: Number(res.rows||0), cols: Number(res.cols||0), cells: res.cells||{} };
-    renderGrid(); fitToWidth(); clearHits();
+    renderGrid();
+    // 取得後は自動で「全体にフィット」
+    fitToAll();
+    clearHits();
   }catch(e){
     alert('地図の取得に失敗しました：' + (e?.message || e)); console.error(e);
   }finally{
@@ -216,17 +221,10 @@ async function loadMap(){
 
 /* ==== 初期化 ==== */
 (async ()=>{
-  try{
-    await liff.init({ liffId: LIFF_ID });
-    if(!liff.isLoggedIn()){ liff.login(); return; }
-    await loadMap();
-  }catch(e){
-    console.error(e);
-    alert('LIFF 初期化に失敗しました：' + (e?.message || e));
-  }
+  await liff.init({ liffId: LIFF_ID });
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+  await loadMap();
 })();
-$('btnLoad').addEventListener('click', loadMap);
-window.addEventListener('resize', ()=>{/*必要なら自動フィット*/});
 </script>
 </body>
 </html>
