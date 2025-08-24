@@ -7,125 +7,63 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-  :root{
-    --cell: 18px;           /* 初期セルサイズ */
-    --border: 1px;          /* 罫線太さ */
-    --border-color:#1f2937; /* 罫線色 */
-  }
+  :root{ --cell: 18px; --border: 1px; --border-color:#1f2937; }
   *,*::before,*::after{box-sizing:border-box}
   html,body{height:100%;overflow:hidden}
-  body{
-    margin:0;background:#f6f8fc;color:#0f172a;
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
-    display:flex;flex-direction:column
-  }
+  body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
   .header{padding:14px 16px 8px;font-weight:800;font-size:18px}
   .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 16px 80px;max-width:1100px;margin:0 auto;width:100%}
 
-  /* コントロール */
-  .controls{
-    display:grid;gap:8px;
-    grid-template-columns:1fr 120px 160px auto auto;
-    align-items:end;
-  }
-  @media (max-width:820px){
-    .controls{grid-template-columns:1fr 1fr}
-    .row-opts{grid-column:1/-1}
-  }
+  .controls{display:grid;gap:8px;grid-template-columns:1fr 120px 160px auto auto;align-items:end}
+  @media (max-width:820px){ .controls{grid-template-columns:1fr 1fr} .row-opts{grid-column:1/-1} }
   .field{display:flex;flex-direction:column;gap:6px}
   .label{font-size:12px;opacity:.7}
-  input[type="text"]{
-    appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;
-    padding:10px 12px;font-size:14px;width:100%
-  }
-  .btn{
-    appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;
-    padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;height:40px
-  }
+  input[type="text"]{appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px;width:100%}
+  .btn{appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;height:40px}
   .btn.secondary{background:#e2e8f0;color:#0f172a}
-  .opt{
-    display:flex;align-items:center;gap:8px;background:#fff;border:1px solid rgba(2,6,23,.08);
-    border-radius:10px;padding:8px 10px;height:40px
-  }
+  .opt{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:10px;padding:8px 10px;height:40px}
   .opt input[type="range"]{width:160px}
   .opt .kv{font-size:12px;opacity:.8}
   .row-opts{display:flex;gap:8px;flex-wrap:wrap}
 
-  /* ビュー */
-  .view{
-    position:relative;flex:1;min-height:220px;background:
-      linear-gradient(45deg,#f1f5f9 25%,transparent 25%) 0 0/20px 20px,
-      linear-gradient(-45deg,#f1f5f9 25%,transparent 25%) 0 0/20px 20px,
-      linear-gradient(45deg,transparent 75%,#f1f5f9 75%) 0 0/20px 20px,
-      linear-gradient(-45deg,transparent 75%,#f1f5f9 75%) 0 0/20px 20px;
-    border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:auto
-  }
-  .grid{
-    display:grid;grid-template-columns:repeat(var(--cols),var(--cell));
-    grid-auto-rows:var(--cell); background:#fff; margin:16px; border:1px solid rgba(2,6,23,.08)
-  }
-  .cell{
-    position:relative; overflow:hidden; line-height:1; user-select:none
-  }
-  .cell .label{
-    position:absolute;left:2px;top:2px;font-size:10px;font-weight:700;
-    padding:2px 4px;border-radius:6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    background:rgba(255,255,255,.65)
-  }
+  .view{position:relative;flex:1;min-height:220px;background:
+    linear-gradient(45deg,#f1f5f9 25%,transparent 25%) 0 0/20px 20px,
+    linear-gradient(-45deg,#f1f5f9 25%,transparent 25%) 0 0/20px 20px,
+    linear-gradient(45deg,transparent 75%,#f1f5f9 75%) 0 0/20px 20px,
+    linear-gradient(-45deg,transparent 75%,#f1f5f9 75%) 0 0/20px 20px;
+    border:1px solid rgba(2,6,23,.08);border-radius:12px;overflow:auto}
+  .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);background:#fff;margin:16px;border:1px solid rgba(2,6,23,.08)}
+  .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
+  .cell .label{position:absolute;left:2px;top:2px;font-size:10px;font-weight:700;padding:2px 4px;border-radius:6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.65)}
   .cell.dark .label{background:rgba(0,0,0,.35);color:#fff}
+  .hit{outline:2px solid #22c55e;outline-offset:-2px;z-index:1}
 
-  /* 強調（検索ヒット） */
-  .hit{outline:2px solid #22c55e; outline-offset:-2px; z-index:1}
-
-  /* 情報パネル */
-  .panel{
-    position:sticky;bottom:0;left:0;right:0;margin:10px 0 0;background:#fff;border:1px solid rgba(2,6,23,.08);
-    border-radius:12px;padding:10px;display:flex;gap:12px;align-items:flex-start
-  }
-  .panel .k{font-size:12px;opacity:.6}
-  .panel .v{font-weight:700}
-  .panel .note{font-size:12px;opacity:.9}
-  .loader{display:none;gap:8px;align-items:center}
-  .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
+  .panel{position:sticky;bottom:0;left:0;right:0;margin:10px 0 0;background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:10px;display:flex;gap:12px;align-items:flex-start}
+  .panel .k{font-size:12px;opacity:.6}.panel .v{font-weight:700}.panel .note{font-size:12px;opacity:.9}
+  .loader{display:none;gap:8px;align-items:center}.spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
-
-  /* bottom nav（任意） */
-  .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-  .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
-  .bottom-nav .material-icons{font-size:24px;color:#0f172a}
 </style>
 </head>
 <body>
   <div class="header">売場サーチ（店内地図）</div>
   <div class="container">
-    <!-- 1) 入力群 -->
     <div class="controls">
       <div class="field" style="grid-column:1/2">
         <div class="label">スプレッドシートID（空なら既定値）</div>
         <input id="inputSheetId" type="text" placeholder="例: 1AbCdEf...（空でOK）">
       </div>
-      <div class="field">
-        <div class="label">シート名</div>
-        <input id="inputSheetName" type="text" value="Floor1">
-      </div>
-      <div class="field">
-        <div class="label">範囲</div>
-        <!-- 既定範囲を A1:BX75 に変更 -->
-        <input id="inputRange" type="text" value="A1:BX75">
-      </div>
+      <div class="field"><div class="label">シート名</div><input id="inputSheetName" type="text" value="Floor1"></div>
+      <div class="field"><div class="label">範囲</div><input id="inputRange" type="text" value="A1:BX75"></div>
       <button id="btnLoad" class="btn"><span class="material-icons">refresh</span>読み込む</button>
       <div class="loader" id="loader"><div class="spin"></div><div>読み込み中...</div></div>
 
       <div class="row-opts">
-        <div class="opt">
-          <span class="kv">セル</span>
-          <input id="sliderSize" type="range" min="10" max="48" step="1" value="18">
-          <span class="kv" id="sizeVal">18px</span>
+        <div class="opt"><span class="kv">セル</span>
+          <input id="sliderSize" type="range" min="10" max="48" step="1" value="18"><span class="kv" id="sizeVal">18px</span>
           <button class="btn secondary" id="btnFit" style="margin-left:8px"><span class="material-icons">fit_screen</span>幅にフィット</button>
         </div>
         <label class="opt"><input id="cbText" type="checkbox" checked> 文字を表示</label>
-        <div class="opt">
-          <span class="kv">検索</span>
+        <div class="opt"><span class="kv">検索</span>
           <input id="inputQuery" type="text" placeholder="例: 惣菜 / A23 など" style="width:180px">
           <button class="btn secondary" id="btnSearch"><span class="material-icons">search</span>検索</button>
           <button class="btn secondary" id="btnClear"><span class="material-icons">backspace</span>クリア</button>
@@ -133,43 +71,25 @@
       </div>
     </div>
 
-    <!-- 2) ビュー -->
     <div id="view" class="view" tabindex="0" aria-label="店内地図ビュー">
       <div id="grid" class="grid" style="--cols:1"></div>
     </div>
 
-    <!-- 3) セル情報 -->
     <div class="panel" id="panel" aria-live="polite" style="display:none">
-      <div>
-        <div class="k">座標</div>
-        <div class="v" id="pCoord">-</div>
-      </div>
-      <div>
-        <div class="k">値</div>
-        <div class="v" id="pValue">-</div>
-      </div>
-      <div style="flex:1">
-        <div class="k">ノート</div>
-        <div class="note" id="pNote">-</div>
-      </div>
+      <div><div class="k">座標</div><div class="v" id="pCoord">-</div></div>
+      <div><div class="k">値</div><div class="v" id="pValue">-</div></div>
+      <div style="flex:1"><div class="k">ノート</div><div class="note" id="pNote">-</div></div>
     </div>
   </div>
 
-  <!-- 任意：ボトムナビ -->
-  <nav class="bottom-nav">
-    <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
-    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
-    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
-    <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
-    <button onclick="location.href='./settings.html'"><span class="material-icons">設定</span><div>設定</div></button>
-  </nav>
-
 <script>
-/* ===== 設定（必要なら変更） ===== */
+/* ==== 設定 ==== */
+// ← あなたの LIFF ID
 const LIFF_ID = "2007972627-vnAq4qbB";
+// ← 上でデプロイした「専用GAS」の WebアプリURL に置き換え
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbw2q_16ZDrEZfQE2jSYdlFl6Utc8y4IYqZMVYRVaXuMZhwrHv4t0fSPztRJk8X_qmG_ug/exec";
 
-/* ===== ユーティリティ ===== */
+/* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
 const rgbToCss = (rgb)=> {
   const r = Math.round((rgb?.red??1)*255);
@@ -179,7 +99,6 @@ const rgbToCss = (rgb)=> {
 };
 const isDark = (rgb)=>{
   const r=(rgb?.red??1), g=(rgb?.green??1), b=(rgb?.blue??1);
-  // 相対輝度でざっくり判定
   const L = 0.2126*r + 0.7152*g + 0.0722*b;
   return L < 0.5;
 };
@@ -190,10 +109,10 @@ async function callServer(payload){
   return j;
 }
 
-/* ===== 状態 ===== */
+/* ==== 状態 ==== */
 let current = { rows:0, cols:0, cells:{} };
 
-/* ===== 描画 ===== */
+/* ==== 描画 ==== */
 function renderGrid(){
   const showText = $('cbText').checked;
   const grid = $('grid');
@@ -213,29 +132,23 @@ function renderGrid(){
       div.className = 'cell';
       div.dataset.r = r; div.dataset.c = c;
 
-      // 背景
       const bg = d?.bg || {red:1,green:1,blue:1};
       div.style.background = rgbToCss(bg);
       if(isDark(bg)) div.classList.add('dark');
 
-      // 罫線
       const b = d?.b || {};
       div.style.borderTop    = (b.t ? `var(--border) solid var(--border-color)` : 'none');
       div.style.borderRight  = (b.r ? `var(--border) solid var(--border-color)` : 'none');
       div.style.borderBottom = (b.b ? `var(--border) solid var(--border-color)` : 'none');
       div.style.borderLeft   = (b.l ? `var(--border) solid var(--border-color)` : 'none');
 
-      // 表示値
       if(showText && d && (d.v || d.n)){
         const span = document.createElement('span');
         span.className = 'label';
         span.textContent = String(d.v || d.n || '');
         div.appendChild(span);
       }
-
-      // クリックで情報
       div.addEventListener('click', ()=>showPanel(r,c,d));
-
       frag.appendChild(div);
     }
   }
@@ -249,21 +162,15 @@ function showPanel(r,c,d){
   $('pNote').textContent  = d?.n || '—';
 }
 
-/* ===== 検索 ===== */
-function clearHits(){
-  document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit'));
-}
+/* ==== 検索 ==== */
+function clearHits(){ document.querySelectorAll('.cell.hit').forEach(el=>el.classList.remove('hit')); }
 function search(){
   clearHits();
-  const q = $('inputQuery').value.trim();
-  if(!q) return;
-  const cells = current.cells || {};
-  const grid = $('grid');
+  const q = $('inputQuery').value.trim(); if(!q) return;
+  const cells = current.cells || {}; const grid = $('grid');
   let first = null;
-
-  Object.entries(cells).forEach(([key, d])=>{
-    const r = Number(key.split(':')[0]);
-    const c = Number(key.split(':')[1]);
+  Object.entries(cells).forEach(([key,d])=>{
+    const [r,c] = key.split(':').map(Number);
     const v = (d.v||'') + ' ' + (d.n||'');
     if(v && v.toLowerCase().includes(q.toLowerCase())){
       const idx = r*current.cols + c;
@@ -271,77 +178,55 @@ function search(){
       if(el){ el.classList.add('hit'); if(!first) first = el; }
     }
   });
-
-  if(first){
-    first.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
-  }
+  if(first){ first.scrollIntoView({behavior:'smooth',block:'center',inline:'center'}); }
 }
 
-/* ===== セルサイズ ===== */
-function setCellSize(px){
-  document.documentElement.style.setProperty('--cell', px+'px');
-  $('sizeVal').textContent = px+'px';
-}
+/* ==== セルサイズ ==== */
+function setCellSize(px){ document.documentElement.style.setProperty('--cell', px+'px'); $('sizeVal').textContent = px+'px'; }
 function getCellSize(){ return Number(getComputedStyle(document.documentElement).getPropertyValue('--cell').replace('px','')) || 18; }
-$('sliderSize')?.addEventListener('input', e=> setCellSize(Number(e.target.value)));
-$('cbText')?.addEventListener('change', renderGrid);
-$('btnSearch')?.addEventListener('click', search);
-$('btnClear')?.addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); });
-$('btnFit')?.addEventListener('click', fitToWidth);
-
+$('sliderSize').addEventListener('input', e=> setCellSize(Number(e.target.value)));
+$('cbText').addEventListener('change', renderGrid);
+$('btnSearch').addEventListener('click', search);
+$('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); });
+$('btnFit').addEventListener('click', fitToWidth);
 function fitToWidth(){
-  const view = $('view');
-  const cols = current.cols || 1;
-  const padding = 32; // viewの左右マージン相当
-  const w = view.clientWidth - padding;
+  const view = $('view'); const cols = current.cols || 1;
+  const w = view.clientWidth - 32; // 左右余白ぶん
   let px = Math.max(8, Math.min(64, Math.floor(w / cols)));
-  $('sliderSize').value = String(px);
-  setCellSize(px);
+  $('sliderSize').value = String(px); setCellSize(px);
 }
 
-/* ===== 読み込み ===== */
+/* ==== 読み込み ==== */
 async function loadMap(){
   try{
     $('loader').style.display='flex';
     const spreadsheetId = $('inputSheetId').value.trim() || undefined;
     const sheetName = $('inputSheetName').value.trim() || 'Floor1';
-    const rangeA1 = $('inputRange').value.trim() || 'A1:BX75'; // ← 既定値
+    const rangeA1 = $('inputRange').value.trim() || 'A1:BX75';
 
-    const res = await callServer({
-      action: 'storeMap',
-      idToken: liff.getIDToken(),
-      spreadsheetId, sheetName, rangeA1
-    });
-
+    const res = await callServer({ action:'storeMap', idToken:liff.getIDToken(), spreadsheetId, sheetName, rangeA1 });
     current = { rows: Number(res.rows||0), cols: Number(res.cols||0), cells: res.cells||{} };
-    renderGrid();
-    // 初回は幅フィット
-    fitToWidth();
-    clearHits();
+    renderGrid(); fitToWidth(); clearHits();
   }catch(e){
-    alert('地図の取得に失敗しました：' + (e?.message || e));
-    console.error(e);
+    alert('地図の取得に失敗しました：' + (e?.message || e)); console.error(e);
   }finally{
     $('loader').style.display='none';
   }
 }
 
-/* ===== 初期化 ===== */
+/* ==== 初期化 ==== */
 (async ()=>{
   try{
     await liff.init({ liffId: LIFF_ID });
     if(!liff.isLoggedIn()){ liff.login(); return; }
-    // 自動読み込み
     await loadMap();
   }catch(e){
     console.error(e);
     alert('LIFF 初期化に失敗しました：' + (e?.message || e));
   }
 })();
-$('btnLoad')?.addEventListener('click', loadMap);
-
-/* 画面サイズ変化時：幅フィットが使いやすいように */
-window.addEventListener('resize', ()=>{ /* 必要ならここで自動fit */ });
+$('btnLoad').addEventListener('click', loadMap);
+window.addEventListener('resize', ()=>{/*必要なら自動フィット*/});
 </script>
 </body>
 </html>
