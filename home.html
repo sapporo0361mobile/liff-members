@@ -1,6 +1,58 @@
 <!doctype html>
 <html lang="ja">
 <head>
+<!-- ① LIFF SDK -->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+<!-- ② あなたの LIFF ID を設定 -->
+<script>window.LIFF_ID = "2007972627-vnAq4qbB";</script>
+
+<!-- ③ LINEアプリ外ブロック用ガード：すべてのHTMLで共通に貼る -->
+<style id="liff-guard-style">body{display:none!important}</style>
+<script>
+(function(){
+  var LIFF_ID = window.LIFF_ID || "";
+  function allow(){
+    var st=document.getElementById('liff-guard-style'); if(st) st.remove();
+    if(document.body) document.body.style.display='';
+  }
+  function block(){
+    var deeplink = LIFF_ID ? ('https://liff.line.me/' + encodeURIComponent(LIFF_ID)) : '';
+    document.open();
+    document.write(
+      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+      '<title>このページはLINEアプリ専用です</title>'+
+      '<style>html,body{height:100%}body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}'+
+      '.card{max-width:720px;margin:0 16px;background:#111827;border-radius:14px;padding:18px 16px;border:1px solid rgba(255,255,255,.08)}'+
+      '.h{font-weight:800;margin:4px 0 8px;font-size:16px}.p{opacity:.9;line-height:1.6;font-size:14px}'+
+      '.btn{margin-top:12px;display:inline-block;background:#06c755;color:#0b2314;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700}'+
+      '</style>'+
+      '<div class="card">'+
+        '<div class="h">このページは LINE アプリ内でのみ利用できます</div>'+
+        '<div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>' +
+        (deeplink ? '<a class="btn" href="'+deeplink+'">LINEで開く</a>' : '')+
+      '</div>'
+    );
+    document.close();
+  }
+  function uaLooksLikeLine(){
+    var ua = navigator.userAgent || '';
+    return /Line\/|LIFF/i.test(ua);
+  }
+  // SDKが無くてもUAでできるだけ判定
+  if(!window.liff){
+    if(uaLooksLikeLine()){ allow(); } else { block(); }
+    return;
+  }
+  // LIFF初期化 → アプリ内かどうかで判定
+  liff.init({ liffId: LIFF_ID }).then(function(){
+    if(liff.isInClient()){ allow(); } else { block(); }
+  }).catch(function(){
+    if(uaLooksLikeLine()){ allow(); } else { block(); }
+  });
+})();
+</script>
+  
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>ホーム</title>
