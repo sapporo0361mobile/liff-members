@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>売場サーチ（Fast v3 + Scanner）</title>
+<title>売場サーチ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
@@ -23,7 +23,7 @@
   .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
   .hit{outline:2px solid #ef4444;outline-offset:-2px;z-index:1;box-shadow:0 0 0 2px rgba(239,68,68,.35) inset}
 
-  /* 検索＋カメラ：縦積み */
+  /* 検索＋カメラ（縦積み） */
   .search{display:flex;flex-direction:column;gap:8px;margin-top:10px}
   .search .row{display:flex;gap:8px;align-items:center}
   .search input{flex:1 1 auto;appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px}
@@ -35,6 +35,11 @@
   .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .status{font-size:12px;opacity:.7;margin-top:4px}
+
+  /* 進捗バー（％＋ゲージ） */
+  .progress{position:relative;height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:4px 0 0 0;display:none}
+  .progress .bar{position:absolute;left:0;top:0;height:100%;width:0%;background:#06c755;transition:width .12s linear}
+  .progress-text{font-size:12px;opacity:.7;margin-top:6px;text-align:right}
 
   /* スキャナーモーダル */
   .scanner-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
@@ -55,14 +60,16 @@
     <!-- 検索（1段目）＋ カメラ（2段目） -->
     <div class="search">
       <div class="row">
-        <input id="inputQuery" type="text" inputmode="numeric" placeholder="JAN（13桁）またはキーワード">
+        <input id="inputQuery" type="text" inputmode="numeric" placeholder="JAN（13桁）">
         <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
         <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
       </div>
-      <button id="btnScan" class="btn secondary block"><span class="material-icons">photo_camera</span>カメラでJANを読み取る</button>
+      <button id="btnScan" class="btn secondary block"><span class="material-icons">photo_camera</span>カメラでJANを読み取る(未実装）</button>
     </div>
 
     <div class="loader" id="loader"><div class="spin"></div><div>読み込み中…</div></div>
+    <div class="progress" id="progress" aria-hidden="true"><div class="bar" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText">0%</div>
     <div class="status" id="status"></div>
 
     <!-- スキャナーUI -->
@@ -84,7 +91,7 @@
 <script>
 /***** 設定（差し替え） *****/
 const LIFF_ID      = "2007972627-vnAq4qbB"; // ←自分のLIFF ID
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt4y102iXqKK87UPK2ktUyoVLVJUim3g_3fXZlbLZPDQY1QoBE3uw6BmRDJq-EUx3O7w/exec"; // ←GASのWebアプリURL
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwKFeF3xU86ha9B17M1hkagA44EXJCejGFmptKxIQAQMAVycIvklspNp5OpZuF0ixnMnA/exec"; // ←GASのWebアプリURL
 
 /***** ユーティリティ *****/
 const $ = id => document.getElementById(id);
@@ -101,6 +108,38 @@ async function callServer(payload){
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
+
+/***** 進捗（なめらか補間＋自動前進） *****/
+let _pNow = 0, _pTarget = 0, _pTimer = null, _pAuto = null;
+function _tick(){
+  const step = Math.max(0.2, (_pTarget - _pNow) * 0.18); // 残差の18%ずつ近づく
+  _pNow = Math.min(_pTarget, _pNow + step);
+  const pct = Math.floor(_pNow);
+  const bar = $('progressBar');
+  const txt = $('progressText');
+  if(bar) bar.style.width = pct + '%';
+  if(txt) txt.textContent = pct + '%';
+  if (Math.abs(_pTarget - _pNow) < 0.5 && _pTarget >= 100){ stopProgress(); }
+}
+function showProgress(){
+  const p = $('progress'); if(!p) return;
+  p.style.display='block'; p.setAttribute('aria-hidden','false');
+  if(_pTimer) cancelAnimationFrame(_pTimer);
+  _pTimer = requestAnimationFrame(function loop(){ _tick(); _pTimer = requestAnimationFrame(loop); });
+  clearInterval(_pAuto);
+  _pAuto = setInterval(()=>{ if(_pTarget < 95) setProgressTarget(_pTarget + 1); }, 450);
+}
+function hideProgress(){
+  const p = $('progress'); if(!p) return;
+  p.style.display='none'; p.setAttribute('aria-hidden','true');
+  $('progressBar').style.width='0%'; $('progressText').textContent='0%';
+  _pNow = 0; _pTarget = 0;
+  if(_pTimer) cancelAnimationFrame(_pTimer), _pTimer=null;
+  clearInterval(_pAuto); _pAuto=null;
+}
+function startProgress(){ _pNow=0; _pTarget=0; showProgress(); setProgressTarget(3); }
+function setProgressTarget(v){ _pTarget = Math.max(_pTarget, Math.min(100, v|0)); }
+function stopProgress(){ _pTarget = 100; setTimeout(hideProgress, 500); }
 
 /***** 状態 *****/
 let current = { rows:0, cols:0, cells:{}, merges:[] };
@@ -218,34 +257,51 @@ function searchText(q){
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/***** 初期読み込み *****/
+/***** 初期読み込み（段階的に進捗更新） *****/
 async function initLoad(){
   try{
     $('loader').style.display='flex'; $('status').textContent = '';
+    startProgress();                   // 0→3%
+    setProgressTarget(8);              // LIFF 初期化後の目安
+
     const idToken = liff.getIDToken();
-    let res = await callServer({ action:'initBundle', idToken });
+    setProgressTarget(15);             // トークン取得
+    setProgressTarget(25);             // リクエスト開始
+
+    let res = await callServer({ action:'initBundle', idToken }).catch(e=>({ok:false,error:String(e)}));
     if(!res.ok && /unknown action/i.test(res.error||'')){
+      setProgressTarget(35);           // 互換モード
       const mapRes = await callServer({ action:'storeMap', idToken });
       if(!mapRes.ok) throw new Error(mapRes.error||'storeMap failed');
+      setProgressTarget(45);           // 索引取得
       let idxRes = await callServer({ action:'dataIndex', idToken }).catch(()=>null);
       res = { ok:true, map: mapRes, index: (idxRes&&idxRes.ok)? idxRes.index : {}, janCount: (idxRes&&idxRes.ok)? idxRes.count : 0 };
     }
     if(!res.ok) throw new Error(res.error||'init failed');
 
+    setProgressTarget(55);             // JSON受領
     const m = res.map || {};
     current = { rows:+(m.rows||0), cols:+(m.cols||0), cells:m.cells||{}, merges:m.merges||[] };
-    janIndex = res.index || {};
 
+    setProgressTarget(65);             // レイアウト準備
     buildMergeMaps();
+    setProgressTarget(75);             // 描画
     renderGrid();
+
+    setProgressTarget(85);             // 索引
+    janIndex = res.index || {};
     buildShelfIndex();
+
+    setProgressTarget(100);            // 完了
     $('status').textContent = `初期読込完了（JAN: ${res.janCount||0} 件${res.cacheKey?`, cache:${res.cacheKey}`:''}）`;
   }catch(e){
     console.error(e);
     $('status').textContent = '初期読み込みに失敗: ' + (e?.message||e);
     alert('初期読み込みに失敗しました：' + (e?.message || e));
+    hideProgress();
   }finally{
     $('loader').style.display='none';
+    // stopProgress は 100% 到達時に自動で呼ばれます
   }
 }
 
@@ -275,12 +331,10 @@ let zxingReader = null;
 let scanning = false;
 
 async function ensureScanner(){
-  // 1) ネイティブAPI（速い）
   if ('BarcodeDetector' in window) {
     const formats = ['ean-13','ean-8','upc-a','upc-e','code-128'];
     try{ detector = new window.BarcodeDetector({formats}); }catch(_){ detector = null; }
   }
-  // 2) フォールバック：ZXing（CDNから動的ロード）
   if (!detector && !zxingReader){
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';
@@ -289,13 +343,11 @@ async function ensureScanner(){
     zxingReader = new (ZX.BrowserMultiFormatReader || ZX.BrowserBarcodeReader)();
   }
 }
-
 async function startScanner(){
   try{
     await ensureScanner();
-    $('#scannerModal').style.display='flex';  // モーダル先に出す（iOS権限UI対策）
+    $('#scannerModal').style.display='flex';
     const constraints = { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false };
-    // ★必ずユーザー操作（クリック）直下で呼ぶ
     mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
     const video = $('#scannerVideo');
     video.setAttribute('playsinline',''); // iOS対策
@@ -317,7 +369,7 @@ async function startScanner(){
       };
       requestAnimationFrame(loop);
     }else if (zxingReader){
-      await zxingReader.decodeFromVideoDevice(null, 'scannerVideo', (result, err) => {
+      await zxingReader.decodeFromVideoDevice(null, 'scannerVideo', (result) => {
         if(!scanning) return;
         if (result){
           const raw = String(result.getText ? result.getText() : result.text || '').replace(/\D/g,'');
@@ -328,12 +380,10 @@ async function startScanner(){
   }catch(e){
     stopScanner();
     const msg = e && (e.name || e.message) || String(e);
-    console.error('[camera]', e);
-    // 代表的なエラーの日本語化
     let hint = '';
-    if (/NotAllowedError|Permission/i.test(msg)) hint = '\n\nカメラ権限が拒否されています。端末の設定でLINEのカメラを許可してください。';
+    if (/NotAllowedError|Permission/i.test(msg)) hint = '\n\nカメラ権限が拒否されています。端末設定でLINEのカメラを許可してください。';
     if (/NotFoundError|DevicesNotFound/i.test(msg)) hint = '\n\n背面カメラが見つかりません。別端末でお試しください。';
-    if (/SecureContext|https/i.test(msg)) hint = '\n\nページがHTTPSで提供されている必要があります。';
+    if (/SecureContext|https/i.test(msg)) hint = '\n\nページは https:// で提供されている必要があります。';
     alert('カメラを開始できませんでした: ' + msg + hint);
   }
 }
@@ -348,8 +398,7 @@ function onScanResult(jan){
   $('#inputQuery').value = jan;
   searchByJanLocal(jan);
 }
-
-$('btnScan').addEventListener('click', ()=>{ startScanner(); });
+$('btnScan').addEventListener('click', ()=> startScanner());
 $('btnScannerClose').addEventListener('click', ()=> stopScanner());
 </script>
 </body>
