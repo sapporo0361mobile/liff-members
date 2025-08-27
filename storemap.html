@@ -1,10 +1,9 @@
-
 <!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>売場サーチ（Fast v3）</title>
+<title>売場サーチ</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
@@ -30,6 +29,19 @@
   .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .status{font-size:12px;opacity:.7;margin-top:4px}
+
+  /* 進捗バー */
+  .progress{position:relative;height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:4px 0 0 0;display:none}
+  .progress .bar{position:absolute;left:0;top:0;height:100%;width:0%;background:#06c755;transition:width .25s ease}
+  .progress-text{font-size:12px;opacity:.7;margin-top:6px;text-align:right}
+
+  /* スキャナーモーダル */
+  .scanner-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+  .scanner{background:#000;border-radius:14px;overflow:hidden;max-width:520px;width:92vw}
+  .scanner header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0f172a;color:#fff}
+  .scanner video{width:100%;height:auto;background:#000}
+  .scanner .footer{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f172a;color:#fff}
+  .scanner .tag{font-size:12px;opacity:.8}
 </style>
 </head>
 <body>
@@ -39,18 +51,37 @@
       <div id="grid" class="grid" style="--cols:1"></div>
     </div>
     <div class="search">
-      <input id="inputQuery" type="text" inputmode="numeric" placeholder="JAN（13桁）またはキーワード">
+      <input id="inputQuery" type="text" inputmode="numeric" placeholder="JAN（13桁）">
       <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
       <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
+      <button id="btnScan" class="btn secondary"><span class="material-icons">photo_camera</span>カメラ</button>
     </div>
     <div class="loader" id="loader"><div class="spin"></div><div>読み込み中…</div></div>
+    <div class="progress" id="progress" aria-hidden="true"><div class="bar" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText">0%</div>
     <div class="status" id="status"></div>
+
+    <!-- スキャナーUI -->
+    <div id="scannerModal" class="scanner-backdrop" role="dialog" aria-modal="true" aria-label="バーコードスキャナー">
+      <div class="scanner">
+        <header>
+          <div style="display:flex;align-items:center;gap:8px"><span class="material-icons">qr_code_scanner</span><strong>JANスキャナー</strong></div>
+          <button id="btnScannerClose" class="btn secondary" style="height:32px;padding:6px 10px"><span class="material-icons">close</span>閉じる</button>
+        </header>
+        <video id="scannerVideo" autoplay playsinline muted></video>
+        <div class="footer">
+          <span class="material-icons">tips_and_updates</span>
+          <div class="tag">枠内にバーコード（JAN/EAN-13）を合わせてください</div>
+        </div>
+      </div>
+    </div>
   </div>
 
 <script>
 /***** 設定（差し替え） *****/
-const LIFF_ID      = "2007972627-vnAq4qbB"; // ←自分のLIFF ID
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbx76-JJXyb3ub1FrbRHdkSpAoubJcDOe_I49wyestdHOZUD5bB4JaPGw4dBVCfML9ER5Q/exec"; // ←GASのWebアプリURL
+// 自分の LIFF ID と GAS のウェブアプリURLに置き換えてください
+const LIFF_ID      = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt4y102iXqKK87UPK2ktUyoVLVJUim3g_3fXZlbLZPDQY1QoBE3uw6BmRDJq-EUx3O7w/exec";
 
 /***** ユーティリティ *****/
 const $ = id => document.getElementById(id);
@@ -61,6 +92,15 @@ function rgbToCss(g){
   const b = (typeof g.b==='number')? g.b : 255;
   const a = (typeof g.a==='number')? g.a : 1;
   return (a<1) ? `rgba(${r},${gg},${b},${a.toFixed(3)})` : `rgb(${r},${gg},${b})`;
+}
+// 進捗UI
+function showProgress(){ $('progress').style.display='block'; $('progress').setAttribute('aria-hidden','false'); }
+function hideProgress(){ $('progress').style.display='none'; $('progress').setAttribute('aria-hidden','true'); $('progressBar').style.width='0%'; $('progressText').textContent='0%'; }
+function setProgress(p, text){
+  showProgress();
+  const clamped=Math.max(0, Math.min(100, p|0));
+  $('progressBar').style.width = clamped+'%';
+  $('progressText').textContent = (text? text+' ' : '') + clamped + '%';
 }
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
@@ -191,33 +231,40 @@ function searchText(q){
   $('status').textContent = count ? `検索ヒット: ${count} 件` : '該当なし';
 }
 
-/***** 初期読み込み（地図 + JAN索引をまとめて） *****/
-async function initLoad(){
+/***** 初期読み込み（進捗表示つき） *****/
+async function initLoad2(){
+  const prog = (p, t)=>{ try{ setProgress(p, t);}catch(_){ } };
   try{
     $('loader').style.display='flex'; $('status').textContent = '';
-    const idToken = liff.getIDToken(); // 初回だけ送る
+    prog(10,'LIFF 初期化');
+    const idToken = liff.getIDToken();
+    prog(25,'サーバーへ要求');
     let res = await callServer({ action:'initBundle', idToken });
     if(!res.ok && /unknown action/i.test(res.error||'')){
-      // 古いGAS互換フォールバック
       const mapRes = await callServer({ action:'storeMap', idToken });
       if(!mapRes.ok) throw new Error(mapRes.error||'storeMap failed');
       let idxRes = await callServer({ action:'dataIndex', idToken }).catch(()=>null);
       res = { ok:true, map: mapRes, index: (idxRes&&idxRes.ok)? idxRes.index : {}, janCount: (idxRes&&idxRes.ok)? idxRes.count : 0 };
     }
+    prog(55,'データ受信');
     if(!res.ok) throw new Error(res.error||'init failed');
 
     const m = res.map || {};
     current = { rows:+(m.rows||0), cols:+(m.cols||0), cells:m.cells||{}, merges:m.merges||[] };
-    janIndex = res.index || {};
-
+    prog(70,'レイアウト構築');
     buildMergeMaps();
     renderGrid();
+    prog(85,'索引構築');
+    janIndex = res.index || {};
     buildShelfIndex();
+    prog(100,'完了');
     $('status').textContent = `初期読込完了（JAN: ${res.janCount||0} 件${res.cacheKey?`, cache:${res.cacheKey}`:''}）`;
+    setTimeout(()=>hideProgress(), 600);
   }catch(e){
     console.error(e);
     $('status').textContent = '初期読み込みに失敗: ' + (e?.message||e);
     alert('初期読み込みに失敗しました：' + (e?.message || e));
+    hideProgress();
   }finally{
     $('loader').style.display='none';
   }
@@ -227,7 +274,7 @@ async function initLoad(){
 (async ()=>{
   await liff.init({ liffId: LIFF_ID });
   if(!liff.isLoggedIn()){ liff.login(); return; }
-  await initLoad();
+  await (window.initLoad2 || initLoad2)();
 })();
 
 $('btnSearch').addEventListener('click', ()=>{
@@ -242,6 +289,79 @@ $('inputQuery').addEventListener('keydown', e=>{
 });
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
 window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
+
+/* ===== バーコードスキャナー ===== */
+let mediaStream = null;
+let detector = null;
+let zxingReader = null;
+let scanning = false;
+
+async function ensureScanner(){
+  if ('BarcodeDetector' in window) {
+    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128'];
+    try{ detector = new window.BarcodeDetector({formats}); }catch(_){ detector = null; }
+  }
+  if (!detector && !zxingReader){
+    // Fallback: ZXing (UMD)
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';
+    await new Promise((res,rej)=>{ script.onload=res; script.onerror=rej; document.head.appendChild(script); });
+    const ZX = window.ZXing || window.ZXingBrowser || window;
+    zxingReader = new (ZX.BrowserMultiFormatReader || ZX.BrowserBarcodeReader)();
+  }
+}
+
+async function startScanner(){
+  await ensureScanner();
+  $('#scannerModal').style.display='flex';
+  const constraints = { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false };
+  mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+  const video = $('#scannerVideo');
+  video.srcObject = mediaStream;
+  await video.play();
+  scanning = true;
+
+  if (detector){
+    const loop = async ()=>{
+      if(!scanning) return;
+      try{
+        const codes = await detector.detect(video);
+        if(codes && codes.length){
+          const raw = (codes[0].rawValue||'').replace(/\D/g,'');
+          if(/^\d{13}$/.test(raw)) return onScanResult(raw);
+        }
+      }catch(_){}
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }else if (zxingReader){
+    await zxingReader.decodeFromVideoDevice(null, 'scannerVideo', (result, err) => {
+      if(!scanning) return;
+      if (result){
+        const raw = String(result.getText ? result.getText() : result.text || '').replace(/\D/g,'');
+        if(/^\d{13}$/.test(raw)) onScanResult(raw);
+      }
+    });
+  }
+}
+
+function stopScanner(){
+  scanning = false;
+  try{ if(zxingReader){ zxingReader.reset && zxingReader.reset(); } }catch(_){}
+  try{ if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); } }catch(_){}
+  $('#scannerModal').style.display='none';
+}
+
+function onScanResult(jan){
+  stopScanner();
+  $('#inputQuery').value = jan;
+  searchByJanLocal(jan);
+}
+
+$('#btnScan').addEventListener('click', async ()=>{
+  try{ await startScanner(); }catch(e){ alert('カメラを開始できませんでした: '+ (e?.message||e)); }
+});
+$('#btnScannerClose').addEventListener('click', ()=> stopScanner());
 </script>
 </body>
 </html>
