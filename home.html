@@ -7,56 +7,38 @@
 <!-- ② あなたの LIFF ID を設定 -->
 <script>window.LIFF_ID = "2007972627-vnAq4qbB";</script>
 
-<!-- ③ LINEアプリ外ブロック用ガード：すべてのHTMLで共通に貼る -->
+<!-- ③ LINEアプリ外ブロック用ガード（共通貼り付け） -->
 <style id="liff-guard-style">body{display:none!important}</style>
 <script>
 (function(){
   var LIFF_ID = window.LIFF_ID || "";
-  function allow(){
-    var st=document.getElementById('liff-guard-style'); if(st) st.remove();
-    if(document.body) document.body.style.display='';
-  }
+  function allow(){ var st=document.getElementById('liff-guard-style'); if(st) st.remove(); if(document.body) document.body.style.display=''; }
   function block(){
     var deeplink = LIFF_ID ? ('https://liff.line.me/' + encodeURIComponent(LIFF_ID)) : '';
     document.open();
-    document.write(
-      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+    document.write('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
       '<title>このページはLINEアプリ専用です</title>'+
       '<style>html,body{height:100%}body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}'+
       '.card{max-width:720px;margin:0 16px;background:#111827;border-radius:14px;padding:18px 16px;border:1px solid rgba(255,255,255,.08)}'+
       '.h{font-weight:800;margin:4px 0 8px;font-size:16px}.p{opacity:.9;line-height:1.6;font-size:14px}'+
       '.btn{margin-top:12px;display:inline-block;background:#06c755;color:#0b2314;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700}'+
       '</style>'+
-      '<div class="card">'+
-        '<div class="h">このページは LINE アプリ内でのみ利用できます</div>'+
-        '<div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>' +
-        (deeplink ? '<a class="btn" href="'+deeplink+'">LINEで開く</a>' : '')+
-      '</div>'
-    );
+      '<div class="card"><div class="h">このページは LINE アプリ内でのみ利用できます</div>'+
+      '<div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>'+
+      (deeplink ? '<a class="btn" href="'+deeplink+'">LINEで開く</a>' : '')+
+      '</div>');
     document.close();
   }
-  function uaLooksLikeLine(){
-    var ua = navigator.userAgent || '';
-    return /Line\/|LIFF/i.test(ua);
-  }
-  // SDKが無くてもUAでできるだけ判定
-  if(!window.liff){
-    if(uaLooksLikeLine()){ allow(); } else { block(); }
-    return;
-  }
-  // LIFF初期化 → アプリ内かどうかで判定
-  liff.init({ liffId: LIFF_ID }).then(function(){
-    if(liff.isInClient()){ allow(); } else { block(); }
-  }).catch(function(){
-    if(uaLooksLikeLine()){ allow(); } else { block(); }
-  });
+  function uaLooksLikeLine(){ var ua = navigator.userAgent || ''; return /Line\/|LIFF/i.test(ua); }
+  if(!window.liff){ if(uaLooksLikeLine()){ allow(); } else { block(); } return; }
+  liff.init({ liffId: LIFF_ID }).then(function(){ if(liff.isInClient()){ allow(); } else { block(); } })
+    .catch(function(){ if(uaLooksLikeLine()){ allow(); } else { block(); } });
 })();
 </script>
-  
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>ホーム</title>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box}
@@ -76,7 +58,7 @@ body{
 .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
 .name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
 
-/* バッジを横一列（折り返しなし） */
+/* バッジ横並び */
 .meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
 .meta::-webkit-scrollbar{display:none}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
@@ -136,7 +118,7 @@ body{
 
 <script>
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwzMwnk3kX2tL5hxev8qLuO2hcNzRVbthkefaAy_mwi8eWeUDeEg4uX-Vqm0LSqUOefWw/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz7Ywg4cHNYzir4tQ7BcoThxpkoTb5bjrDmrDPrDqY8s3LXARPrizjSuB-4mZxU4hHuzw/exec";
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
@@ -148,6 +130,7 @@ async function callServer(payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
 }
 
+/* 未読バッジ */
 async function refreshUnread(){
   try{
     const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
@@ -159,14 +142,56 @@ async function refreshUnread(){
   }catch(e){ console.error(e); }
 }
 
-/* お知らせ（プレースホルダ：最新1件っぽく見せる） */
+/* お知らせ：シートから取得 → 描画 */
 function setNoticePlaceholder(){
-  const d = new Date();
-  const z = n => String(n).padStart(2,'0');
+  const d = new Date(), z = n => String(n).padStart(2,'0');
   $('n0date').textContent = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
   $('n0text').textContent = 'ご不明点やご要望等ありましたら…「有原」までお願いいたします！';
 }
+async function fetchNotices(){
+  // 軽いキャッシュ（戻る時の即表示）
+  try{
+    const cache = sessionStorage.getItem('notices_cache');
+    if(cache){ const j = JSON.parse(cache); renderNotices(j.items); }
+  }catch(_){}
+  try{
+    const res = await callServer({ action:'notices', idToken: liff.getIDToken(), limit: 5, sinceDays: 365, pinnedFirst: true });
+    if(res && res.ok){
+      renderNotices(res.items || []);
+      try{ sessionStorage.setItem('notices_cache', JSON.stringify(res)); }catch(_){}
+    }else{
+      console.warn('notices api error', res && res.error);
+    }
+  }catch(e){
+    console.warn('notices fetch failed', e);
+  }
+}
+function renderNotices(items){
+  const list = $('noticeList'); if(!list) return;
+  list.innerHTML = '';
+  if(!items || !items.length){
+    const wrap = document.createElement('div');
+    wrap.className = 'notice-item';
+    wrap.innerHTML = '<div class="notice-date">—</div><div class="notice-text">現在お知らせはありません。</div>';
+    list.appendChild(wrap);
+    return;
+  }
+  items.forEach(it=>{
+    const row = document.createElement('div'); row.className = 'notice-item';
+    const date = document.createElement('div'); date.className = 'notice-date'; date.textContent = it.date || '';
+    const text = document.createElement('div'); text.className = 'notice-text';
+    if(it.url){
+      const a = document.createElement('a'); a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.text || '';
+      text.appendChild(a);
+    }else{
+      text.textContent = it.text || '';
+    }
+    if(it.pinned){ const pin = document.createElement('span'); pin.textContent='📌'; pin.style.marginRight='6px'; text.prepend(pin); }
+    row.append(date, text); list.appendChild(row);
+  });
+}
 
+/* 初期化 */
 (async ()=>{
   try{
     $('displayName').textContent = '読み込み中…';
@@ -186,6 +211,7 @@ function setNoticePlaceholder(){
     if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
 
     setNoticePlaceholder();
+    await fetchNotices();
 
     await refreshUnread();
     unreadTimer = setInterval(refreshUnread, 5000);
