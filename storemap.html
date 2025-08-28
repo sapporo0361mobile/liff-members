@@ -52,6 +52,11 @@
   .scanner .alt{display:flex;flex-direction:column;gap:8px;padding:8px;color:#e2e8f0;background:#0b1220}
   .scanner input[type=file]{background:#fff;color:#0f172a;border-radius:10px;padding:10px 12px;border:none}
   #reader{width:100%;min-height:260px}
+
+  /* プレビュー（根本確認用） */
+  .preview-wrap{display:none;flex-direction:column;gap:8px;padding:8px;background:#0b1220}
+  .preview-wrap video{width:100%;max-height:260px;background:#000;border-radius:10px}
+  .note{font-size:12px;opacity:.75}
 </style>
 </head>
 <body>
@@ -87,6 +92,18 @@
           <!-- ライブ読み取りビュー（Html5Qrcode が入る場所） -->
           <div id="reader"></div>
         </div>
+
+        <!-- 根本確認：getUserMedia プレビュー -->
+        <div class="preview-wrap" id="previewWrap">
+          <div style="display:flex;gap:8px;align-items:center">
+            <button id="btnPreviewStart" class="btn secondary" style="height:36px"><span class="material-icons">videocam</span>カメラをテスト起動</button>
+            <button id="btnPreviewStop" class="btn secondary" style="height:36px"><span class="material-icons">stop</span>プレビュー停止</button>
+          </div>
+          <video id="previewVideo" autoplay playsinline muted></video>
+          <div id="previewMsg" class="note"></div>
+          <div class="note">※ ここでプレビューが映れば、権限とデバイスは正常です。その後「ライブ読み取り」を開始します。</div>
+        </div>
+
         <div class="alt">
           <div class="tag">ライブカメラが使えない場合は、写真から読み取れます。</div>
           <input id="fileInput" type="file" accept="image/*" capture="environment">
@@ -122,7 +139,7 @@ function stopProgress(){ _pTarget=100; setTimeout(hideProgress,600); }
 /***** 状態 *****/
 let current={rows:0,cols:0,cells:{},merges:[]}; let ownerMap={},spanMap={},elemMap={},janIndex={},shelfToAnchors=new Map();
 
-/***** レイアウト（省略のない完全実装） *****/
+/***** レイアウト（完全実装） *****/
 function fitToWidth(){ const view=$('view'); const cols=Math.max(1,current.cols||1); const px=Math.max(2,Math.floor(view.clientWidth/cols)); document.documentElement.style.setProperty('--cell',px+'px'); }
 function buildMergeMaps(){ ownerMap={}; spanMap={}; (current.merges||[]).forEach(m=>{ const anchor=`${m.r}:${m.c}`; spanMap[anchor]={rs:m.rs, cs:m.cs}; for(let rr=m.r; rr<m.r+m.rs; rr++){ for(let cc=m.c; cc<m.c+m.cs; cc++){ ownerMap[`${rr}:${cc}`]=anchor; } } }); }
 function renderGrid(){ const grid=$('grid'); grid.style.setProperty('--cols', String(current.cols||1)); grid.innerHTML=''; elemMap={}; const frag=document.createDocumentFragment(); const rows=current.rows||0, cols=current.cols||0, cells=current.cells||{}; for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ const key=`${r}:${c}`; const owner=ownerMap[key]; if(owner && owner!==key) continue; const d=cells[key]||null; const div=document.createElement('div'); div.className='cell'; div.dataset.r=r; div.dataset.c=c; div.style.background=rgbToCss(d?.g); const b=d?.b||{}; div.style.borderTop=(b.t?`var(--border) solid var(--border-color)`:'none'); div.style.borderRight=(b.r?`var(--border) solid var(--border-color)`:'none'); div.style.borderBottom=(b.b?`var(--border) solid var(--border-color)`:'none'); div.style.borderLeft=(b.l?`var(--border) solid var(--border-color)`:'none'); const sp=spanMap[key]; if(sp){ div.style.gridColumn=`span ${sp.cs}`; div.style.gridRow=`span ${sp.rs}`; } frag.appendChild(div); elemMap[key]=div; } } grid.appendChild(frag); fitToWidth(); }
@@ -184,10 +201,12 @@ window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
 /* =========================
    ライブ読み取り：Html5Qrcode
    画像読み取り：Quagga2（フォールバック）
+   さらに：getUserMedia プレビューで根本確認
    ========================= */
 let html5qrcode = null;     // ライブ用
 let liveActive = false;
 let quaggaReady = false;    // 画像デコード用
+let previewStream = null;   // 根本確認用プレビュー
 
 async function ensureHtml5Qrcode(){
   if(window.Html5Qrcode) return;
@@ -206,31 +225,31 @@ async function startLive(){
   const formatsToSupport = [ window.Html5QrcodeSupportedFormats.EAN_13 ];
   const config = {
     fps: 15,
-    qrbox: (viewfinderWidth, viewfinderHeight) => {
-      const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.8;
-      return { width: Math.floor(size), height: Math.floor(size/3) }; // 横長スキャン枠
-    },
+    qrbox: (w, h) => { const size = Math.min(w, h) * 0.8; return { width: Math.floor(size), height: Math.floor(size/3) }; },
     rememberLastUsedCamera: true,
     supportedScanTypes: [ Html5QrcodeScanType.SCAN_TYPE_CAMERA ],
     formatsToSupport
   };
-  const readerEl = $('#reader');
   if(!html5qrcode) html5qrcode = new Html5Qrcode('reader', { verbose: false });
 
   try{
     await html5qrcode.start(
       { facingMode: "environment" },
       config,
-      (decodedText, result) => {
+      (decodedText) => {
         const jan = String(decodedText||'').replace(/\D/g,'');
         if(/^\d{13}$/.test(jan)){ onScanResult(jan); }
       },
-      (errorMessage) => { /* スルー（連続で来る） */ }
+      () => {} // onDecodeFailure: 無視
     );
     liveActive = true;
+    // プレビューUIは閉じておく
+    $('#previewWrap').style.display = 'none';
   }catch(e){
     console.warn('Html5Qrcode start failed:', e);
-    // ライブが使えない→フォールバックに委ねる（モーダルは出したまま）
+    // ライブが使えない→根本確認UIを開く
+    $('#previewWrap').style.display = 'flex';
+    $('#previewMsg').textContent = 'ライブ読み取りの起動に失敗しました。下の「カメラをテスト起動」でプレビューを確認してください。';
   }
 }
 
@@ -274,7 +293,42 @@ function onScanResult(jan){
 
 /* UI: 開く／閉じる */
 function openScanner(){ $('#scannerModal').style.display='flex'; }
-async function closeScanner(){ await stopLive(); $('#scannerModal').style.display='none'; }
+async function closeScanner(){ await stopLive(); stopPreview(); $('#scannerModal').style.display='none'; }
+
+/* 根本確認：getUserMedia プレビュー */
+async function startPreview(){
+  stopPreview();
+  const v = $('#previewVideo');
+  const msg = $('#previewMsg');
+  try{
+    const constraints = { video: { facingMode: { ideal:'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false };
+    previewStream = await navigator.mediaDevices.getUserMedia(constraints);
+    v.setAttribute('playsinline',''); v.muted = true;
+    v.srcObject = previewStream;
+    await v.play();
+    msg.textContent = 'プレビューが表示されています。OKならライブ読み取りを再トライします。';
+    // いったん停止してライブへ
+    setTimeout(async ()=>{
+      stopPreview();
+      await startLive();
+    }, 1500);
+  }catch(e){
+    const name = e && (e.name||e.message)||String(e);
+    let hint = '';
+    if(/NotAllowedError|Permission/i.test(name)) hint = '（権限が拒否されています。設定→LINE→カメラを許可）';
+    else if(/NotFoundError|DevicesNotFound/i.test(name)) hint = '（カメラデバイスが見つかりません）';
+    else if(/OverconstrainedError|Constraint/i.test(name)) hint = '（指定のカメラが利用できません）';
+    else if(/SecureContext|https/i.test(name)) hint = '（https でのアクセスが必要です）';
+    msg.textContent = 'プレビュー起動に失敗: ' + name + ' ' + hint;
+  }
+}
+function stopPreview(){
+  try{
+    const v = $('#previewVideo'); if(v){ v.pause(); v.srcObject = null; }
+    if(previewStream){ previewStream.getTracks().forEach(t=>t.stop()); }
+  }catch(_){}
+  previewStream = null;
+}
 
 /* イベント */
 $('btnScan').addEventListener('click', async ()=>{
@@ -289,6 +343,9 @@ $('fileInput').addEventListener('change', async (e)=>{
   if(jan) onScanResult(jan);
   else alert('画像からJANを読み取れませんでした。明るい場所で、バーコード全体が写るように撮影してください。');
 });
+$('previewWrap').style.display = 'none';
+$('btnPreviewStart').addEventListener('click', startPreview);
+$('btnPreviewStop').addEventListener('click', stopPreview);
 </script>
 </body>
 </html>
