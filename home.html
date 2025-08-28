@@ -4,10 +4,10 @@
   <!-- ① LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <!-- ② あなたの LIFF ID を設定 -->
+  <!-- ② あなたの LIFF ID -->
   <script>window.LIFF_ID = "2007972627-vnAq4qbB";</script>
 
-  <!-- ③ LINEアプリ外ブロック用ガード -->
+  <!-- ③ LINEアプリ外ブロック用ガード（共通で貼る） -->
   <style id="liff-guard-style">body{display:none!important}</style>
   <script>
   (function(){
@@ -35,19 +35,10 @@
       );
       document.close();
     }
-    function uaLooksLikeLine(){
-      var ua = navigator.userAgent || '';
-      return /Line\/|LIFF/i.test(ua);
-    }
-    if(!window.liff){
-      if(uaLooksLikeLine()){ allow(); } else { block(); }
-      return;
-    }
-    liff.init({ liffId: LIFF_ID }).then(function(){
-      if(liff.isInClient()){ allow(); } else { block(); }
-    }).catch(function(){
-      if(uaLooksLikeLine()){ allow(); } else { block(); }
-    });
+    function uaLooksLikeLine(){ var ua = navigator.userAgent || ''; return /Line\/|LIFF/i.test(ua); }
+    if(!window.liff){ if(uaLooksLikeLine()){ allow(); } else { block(); } return; }
+    liff.init({ liffId: LIFF_ID }).then(function(){ if(liff.isInClient()){ allow(); } else { block(); } })
+      .catch(function(){ if(uaLooksLikeLine()){ allow(); } else { block(); } });
   })();
   </script>
 
@@ -56,41 +47,41 @@
   <title>ホーム</title>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-  *,*::before,*::after{box-sizing:border-box}
-  html,body{width:100%;height:100%;overflow-x:hidden}
-  html{-webkit-text-size-adjust:100%}
-  body{
-    margin:0;background:#f6f8fc;color:#0f172a;
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
-    display:flex;flex-direction:column
-  }
-  .page{flex:1;display:flex;flex-direction:column;padding-bottom:72px}
-  .container{width:100%;max-width:880px;margin:0 auto;padding:16px}
-  .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,.06);margin-bottom:12px}
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow-x:hidden}
+    html{-webkit-text-size-adjust:100%}
+    body{
+      margin:0;background:#f6f8fc;color:#0f172a;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
+      display:flex;flex-direction:column
+    }
+    .page{flex:1;display:flex;flex-direction:column;padding-bottom:72px}
+    .container{width:100%;max-width:880px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,.06);margin-bottom:12px}
 
-  /* プロフィール */
-  .profile{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0}
-  .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
-  .name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
+    /* プロフィール */
+    .profile{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0}
+    .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
+    .name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
 
-  /* バッジ（横スクロール） */
-  .meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
-  .meta::-webkit-scrollbar{display:none}
-  .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
-  .badge .label{opacity:.7}.badge .value{font-weight:700}
+    /* バッジ（横スクロール） */
+    .meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
+    .meta::-webkit-scrollbar{display:none}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
+    .badge .label{opacity:.7}.badge .value{font-weight:700}
 
-  /* お知らせ */
-  .notice-title{font-size:16px;font-weight:800;margin:0 0 8px}
-  .notice-list{display:flex;flex-direction:column;gap:8px}
-  .notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
-  .notice-date{font-size:12px;opacity:.6;min-width:84px}
-  .notice-text{font-size:14px;line-height:1.6;word-break:break-word}
+    /* お知らせ */
+    .notice-title{font-size:16px;font-weight:800;margin:0 0 8px}
+    .notice-list{display:flex;flex-direction:column;gap:8px}
+    .notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
+    .notice-date{font-size:12px;opacity:.6;min-width:84px}
+    .notice-text{font-size:14px;word-break:break-word}
 
-  /* ボトムナビ */
-  .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-  .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
-  .bottom-nav .material-icons{font-size:24px;color:#0f172a}
-  .badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
+    /* ボトムナビ */
+    .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
+    .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
+    .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+    .badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
   </style>
 </head>
 <body>
@@ -113,12 +104,7 @@
     <!-- お知らせ -->
     <section class="card" id="noticeCard">
       <h3 class="notice-title">お知らせ</h3>
-      <div class="notice-list" id="noticeList">
-        <div class="notice-item">
-          <div class="notice-date" id="n0date">—</div>
-          <div class="notice-text" id="n0text">現在お知らせはありません。</div>
-        </div>
-      </div>
+      <div class="notice-list" id="noticeList"></div>
     </section>
   </main>
 </div>
@@ -132,19 +118,29 @@
 </nav>
 
 <script>
+/* ====== 設定 ====== */
 const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbw3CMX5u344IsD_Mr9ZQq6WdzQARsTO1i0rzY3-ziljqZzKApZ-HSHd5TvYeYJ3inVwZw/exec";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLY9smtwoT2dYNvUygEhmqDtImeQdrYLGsf2v2ca339MLjOcu8nsm1XSkKK_k-syo/exec";
 const URL_REGISTER = "./register.html";
 const $ = (id)=>document.getElementById(id);
 let unreadTimer = null;
 
-async function callServer(payload){
-  const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
-  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
+/* fetch + タイムアウト */
+function callServer(payload, {timeoutMs=12000} = {}){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort('timeout'), timeoutMs);
+  return fetch(GAS_ENDPOINT, {method:"POST", body:JSON.stringify(payload), signal:ctrl.signal})
+    .then(async r=>{
+      const text = await r.text();
+      let j = {};
+      try{ j = JSON.parse(text); }catch{ throw new Error("JSON parse failed: "+text); }
+      if(!r.ok || !j.ok) throw new Error(j.error || ("HTTP "+r.status));
+      return j;
+    })
+    .finally(()=>clearTimeout(t));
 }
 
-/* 改行を <br> に（XSS対策のエスケープ付き） */
+/* HTMLエスケープ + 改行→<br>（XSS対策） */
 function escapeHtmlWithBr(s){
   return String(s||'')
     .replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]))
@@ -154,56 +150,47 @@ function escapeHtmlWithBr(s){
 /* 未読バッジ */
 async function refreshUnread(){
   try{
-    const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
+    const idToken = liff.getIDToken();
+    if(!idToken) return;
+    const res = await callServer({ action:'unreadTotal', idToken });
     const n = Number(res.unread||0); const b = $('chatBadge');
-    if(b){
-      if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
-      else{ b.style.display='none'; }
-    }
-  }catch(e){ console.error(e); }
+    if(!b) return;
+    if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
+    else{ b.style.display='none'; }
+  }catch(e){ /* 無視 */ }
 }
 
-/* お知らせの描画 */
-function renderNotices(items){
-  const wrap = $('noticeList');
-  if(!wrap) return;
-  wrap.innerHTML = '';
+/* お知らせ：プレースホルダ（チラつき防止） */
+function setNoticePlaceholder(){
+  const d = new Date(); const z = n=>String(n).padStart(2,'0');
+  const date = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+  $('noticeList').innerHTML = `
+    <div class="notice-item">
+      <div class="notice-date">${date}</div>
+      <div class="notice-text">読み込み中…</div>
+    </div>`;
+}
 
+/* お知らせ描画 */
+function renderNotices(items){
+  const wrap = $('noticeList'); if(!wrap) return;
+  wrap.innerHTML = '';
   if(!items || !items.length){
-    const item = document.createElement('div');
-    item.className = 'notice-item';
-    item.innerHTML = `
-      <div class="notice-date">${new Date().toISOString().slice(0,10)}</div>
-      <div class="notice-text">現在お知らせはありません。</div>
-    `;
-    wrap.appendChild(item);
+    const d = new Date(); const z = n=>String(n).padStart(2,'0');
+    const date = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+    wrap.innerHTML = `<div class="notice-item"><div class="notice-date">${date}</div><div class="notice-text">現在お知らせはありません。</div></div>`;
     return;
   }
-
   for(const it of items){
-    const row = document.createElement('div');
-    row.className = 'notice-item';
-
-    const d = document.createElement('div');
-    d.className = 'notice-date';
-    d.textContent = it.date || '';
-
-    const text = document.createElement('div');
-    text.className = 'notice-text';
+    const row = document.createElement('div'); row.className = 'notice-item';
+    const d = document.createElement('div');  d.className = 'notice-date'; d.textContent = it.date || '';
+    const text = document.createElement('div'); text.className = 'notice-text';
     const pin = it.pinned ? ` <span style="display:inline-block;padding:.1em .5em;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;vertical-align:middle">PIN</span>` : '';
     const link = (it.url && it.url.trim()) ? `<br><a href="${it.url}" target="_blank" rel="noopener">詳細を見る</a>` : '';
     text.innerHTML = `${escapeHtmlWithBr(it.text||'')}${pin}${link}`;
-
     row.append(d, text);
     wrap.appendChild(row);
   }
-}
-
-/* お知らせ取得 */
-async function loadNotices(idToken){
-  const res = await callServer({ action:'notices', idToken });
-  // 形式: { ok:true, items:[{date:'YYYY-MM-DD', text:'...', url:'', pinned:true}, ...] }
-  renderNotices(res.items || []);
 }
 
 /* プロフィール描画 */
@@ -218,50 +205,47 @@ function renderProfile(st, prof){
   }
 }
 
-/* お知らせのプレースホルダ（初回一瞬の空白防止） */
-function setNoticePlaceholder(){
-  const d = new Date();
-  const z = n => String(n).padStart(2,'0');
-  const date = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
-  $('noticeList').innerHTML = `
-    <div class="notice-item">
-      <div class="notice-date">${date}</div>
-      <div class="notice-text">読み込み中…</div>
-    </div>`;
-}
-
-/* 初期化：プロフィール & お知らせを並列で読み込み */
+/* ---- 初期化（本体でも明示的に liff.init 実行） ---- */
 (async ()=>{
   try{
-    $('displayName').textContent = '読み込み中…';
     setNoticePlaceholder();
+    $('displayName').textContent = '読み込み中…';
 
+    // ここで再度 init（ガード通過後でも安全・安定のため）
     await liff.init({ liffId: LIFF_ID });
+
     if(!liff.isLoggedIn()){ liff.login(); return; }
+    let idToken = liff.getIDToken();
+    if(!idToken){ liff.login(); return; }
 
-    const idToken = liff.getIDToken();
-
-    // 並列起動
+    // 並列ロード：status / profile / notices
     const pStatus  = callServer({ idToken, action:"status" });
     const pProfile = liff.getProfile().catch(()=>({pictureUrl:''}));
-    const pNotices = loadNotices(idToken); // 中で描画まで実行
+    const pNotices = callServer({ idToken, action:'notices' })
+                      .then(r=>renderNotices(r.items||[]))
+                      .catch(()=>renderNotices([]));
 
-    // プロフィール系をまとめて待って描画
+    // プロフィール先に描画
     const [st, prof] = await Promise.all([pStatus, pProfile]);
     if(!st.bound){ location.replace(URL_REGISTER); return; }
     renderProfile(st, prof);
 
-    // 未読バッジ（初回＆定期）
+    // 未読バッジ（以後ポーリング）
     await refreshUnread();
     clearInterval(unreadTimer);
     unreadTimer = setInterval(refreshUnread, 5000);
     document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshUnread(); });
 
-    await pNotices; // お知らせ完了待ち（描画済み）
+    // お知らせ完了待ち（描画は pNotices 内で既に実施）
+    await pNotices;
+
   }catch(err){
     console.error(err);
     $('displayName').textContent = 'エラー：' + (err?.message||err);
-    renderNotices([]);
+    try{ renderNotices([]); }catch(_){}
+    if(String(err).includes('idToken') || String(err).includes('timeout')) {
+      try{ liff.login(); }catch(_){}
+    }
   }
 })();
 </script>
