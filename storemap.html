@@ -64,7 +64,7 @@
         <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
         <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
       </div>
-      <button id="btnScan" class="btn secondary block"><span class="material-icons">photo_camera</span>カメラでJANを読み取る(未実装）</button>
+      <button id="btnScan" class="btn secondary block"><span class="material-icons">photo_camera</span>カメラでJANを読み取る</button>
     </div>
 
     <div class="loader" id="loader"><div class="spin"></div><div>読み込み中…</div></div>
@@ -94,7 +94,9 @@ const LIFF_ID      = "2007972627-vnAq4qbB"; // ←自分のLIFF ID
 const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwKFeF3xU86ha9B17M1hkagA44EXJCejGFmptKxIQAQMAVycIvklspNp5OpZuF0ixnMnA/exec"; // ←GASのWebアプリURL
 
 /***** ユーティリティ *****/
-const $ = id => document.getElementById(id);
+// セレクタ両対応（'#' や '.' を含むなら querySelector、そうでなければ getElementById）
+const $ = (sel) => (sel && (sel.startsWith('#') || sel.includes('.'))) ? document.querySelector(sel) : document.getElementById(sel);
+
 function rgbToCss(g){
   if(!g) return 'rgb(255,255,255)';
   const r = (typeof g.r==='number')? g.r : 255;
@@ -112,7 +114,7 @@ async function callServer(payload){
 /***** 進捗（なめらか補間＋自動前進） *****/
 let _pNow = 0, _pTarget = 0, _pTimer = null, _pAuto = null;
 function _tick(){
-  const step = Math.max(0.2, (_pTarget - _pNow) * 0.18); // 残差の18%ずつ近づく
+  const step = Math.max(0.2, (_pTarget - _pNow) * 0.18);
   _pNow = Math.min(_pTarget, _pNow + step);
   const pct = Math.floor(_pNow);
   const bar = $('progressBar');
@@ -332,7 +334,7 @@ let scanning = false;
 
 async function ensureScanner(){
   if ('BarcodeDetector' in window) {
-    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128'];
+    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128']; // iOS/Android差異対策でean-13表記
     try{ detector = new window.BarcodeDetector({formats}); }catch(_){ detector = null; }
   }
   if (!detector && !zxingReader){
@@ -346,11 +348,19 @@ async function ensureScanner(){
 async function startScanner(){
   try{
     await ensureScanner();
+    // ここはセレクタ両対応の $ を使用（'#scannerModal' でも 'scannerModal' でもOK）
     $('#scannerModal').style.display='flex';
-    const constraints = { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false };
+
+    const constraints = {
+      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} },
+      audio:false
+    };
     mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
     const video = $('#scannerVideo');
-    video.setAttribute('playsinline',''); // iOS対策
+    // iOS対策：playsinline + muted + attribute
+    video.setAttribute('playsinline','');
+    video.muted = true;
     video.srcObject = mediaStream;
     await video.play();
     scanning = true;
@@ -389,7 +399,7 @@ async function startScanner(){
 }
 function stopScanner(){
   scanning = false;
-  try{ if(zxingReader){ zxingReader.reset && zxingReader.reset(); } }catch(_){}
+  try{ if(zxingReader && zxingReader.reset) zxingReader.reset(); }catch(_){}
   try{ if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); } }catch(_){}
   $('#scannerModal').style.display='none';
 }
