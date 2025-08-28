@@ -37,7 +37,7 @@
     .notice-list{display:flex;flex-direction:column;gap:8px}
     .notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
     .notice-date{font-size:12px;opacity:.6;min-width:84px}
-    .notice-text{font-size:14px}
+    .notice-text{font-size:14px;white-space: pre-line;} /* ← 改行をそのまま表示 */
     .pin{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#fde68a;font-size:11px;color:#92400e}
 
     /* ボトムナビ */
@@ -70,7 +70,7 @@
       <div class="notice-list" id="noticeList">
         <div class="notice-item">
           <div class="notice-date" id="n0date">—</div>
-          <div class="notice-text" id="n0text">現在お知らせはありません。</div>
+          <div class="notice-text" id="n0text">読み込み中</div>
         </div>
       </div>
     </section>
@@ -157,9 +157,31 @@ async function loadNotices(){
 
       const text = document.createElement('div');
       text.className = 'notice-text';
-      const link = (it.url && it.url.trim()) ? `<br><a href="${it.url}" target="_blank" rel="noopener">詳細を見る</a>` : '';
-      const pin = it.pinned ? `<span class="pin">PIN</span>` : '';
-      text.innerHTML = `${escapeHtml(it.text)} ${pin}${link}`;
+
+      // 本文は textContent で安全に代入（シートの「普通の改行」が \r\n/\r/\n として届く）
+      // CSSの white-space: pre-line; で改行をそのまま表示
+      text.textContent = it.text || '';
+
+      // PIN（任意）
+      if(it.pinned){
+        text.appendChild(document.createTextNode(' '));
+        const pinEl = document.createElement('span');
+        pinEl.className = 'pin';
+        pinEl.textContent = 'PIN';
+        text.appendChild(pinEl);
+      }
+
+      // リンク（任意）
+      if(it.url && String(it.url).trim()){
+        const br = document.createElement('br');
+        const a  = document.createElement('a');
+        a.href = String(it.url).trim();
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = '詳細を見る';
+        text.appendChild(br);
+        text.appendChild(a);
+      }
 
       wrap.appendChild(date);
       wrap.appendChild(text);
@@ -174,7 +196,6 @@ async function loadNotices(){
       </div>`;
   }
 }
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
 
 /* ---- 初期化 ---- */
 (async ()=>{
@@ -198,7 +219,7 @@ function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ "&":"&amp
     const pf = await liff.getProfile().catch(()=>({pictureUrl:''}));
     if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
 
-    // お知らせロード
+    // お知らせロード（改行対応済み）
     await loadNotices();
 
     // 未読バッジ（以前の機能そのまま）
