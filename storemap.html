@@ -1,54 +1,103 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>売場サーチ</title>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<style>
-  :root{ --cell: 12px; --border: 1px; --border-color:#1f2937; }
-  *,*::before,*::after{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;background:#f6f8fc;color:#0f172a;
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
-    display:flex;flex-direction:column
-  }
-  .header{padding:14px 16px 8px;font-weight:800;font-size:18px}
-  .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 12px 16px;width:100%;max-width:100%}
+  <!-- ① LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  .view{position:relative;flex:0 0 auto;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff;overflow:hidden}
-  .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);width:100%}
-  .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
-  .hit{outline:2px solid #ef4444;outline-offset:-2px;z-index:1;box-shadow:0 0 0 2px rgba(239,68,68,.35) inset}
+  <!-- ② あなたの LIFF ID を設定 -->
+  <script>window.LIFF_ID = "2007972627-vnAq4qbB";</script>
 
-  /* 検索＋カメラ（縦積み） */
-  .search{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-  .search .row{display:flex;gap:8px;align-items:center}
-  .search input{flex:1 1 auto;appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px}
-  .btn{appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;height:40px}
-  .btn.secondary{background:#e2e8f0;color:#0f172a}
-  .btn.block{width:100%;justify-content:center}
+  <!-- ③ LINEアプリ外ブロック用ガード：すべてのHTMLで共通に貼る -->
+  <style id="liff-guard-style">body{display:none!important}</style>
+  <script>
+  (function(){
+    var LIFF_ID = window.LIFF_ID || "";
+    function allow(){
+      var st=document.getElementById('liff-guard-style'); if(st) st.remove();
+      if(document.body) document.body.style.display='';
+    }
+    function block(){
+      var deeplink = LIFF_ID ? ('https://liff.line.me/' + encodeURIComponent(LIFF_ID)) : '';
+      document.open();
+      document.write(
+        '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
+        '<title>このページはLINEアプリ専用です</title>'+
+        '<style>html,body{height:100%}body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}'+
+        '.card{max-width:720px;margin:0 16px;background:#111827;border-radius:14px;padding:18px 16px;border:1px solid rgba(255,255,255,.08)}'+
+        '.h{font-weight:800;margin:4px 0 8px;font-size:16px}.p{opacity:.9;line-height:1.6;font-size:14px}'+
+        '.btn{margin-top:12px;display:inline-block;background:#06c755;color:#0b2314;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700}'+
+        '</style>'+
+        '<div class="card">'+
+          '<div class="h">このページは LINE アプリ内でのみ利用できます</div>'+
+          '<div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>' +
+          (deeplink ? '<a class="btn" href="'+deeplink+'">LINEで開く</a>' : '')+
+        '</div>'
+      );
+      document.close();
+    }
+    function uaLooksLikeLine(){
+      var ua = navigator.userAgent || '';
+      return /Line\/|LIFF/i.test(ua);
+    }
+    if(!window.liff){
+      if(uaLooksLikeLine()){ allow(); } else { block(); }
+      return;
+    }
+    liff.init({ liffId: LIFF_ID }).then(function(){
+      if(liff.isInClient()){ allow(); } else { block(); }
+    }).catch(function(){
+      if(uaLooksLikeLine()){ allow(); } else { block(); }
+    });
+  })();
+  </script>
 
-  .loader{display:none;gap:8px;align-items:center;margin:4px 0 0 0;color:#334155;font-size:14px}
-  .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
-  @keyframes sp{to{transform:rotate(360deg)}}
-  .status{font-size:12px;opacity:.7;margin-top:4px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>売場サーチ</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    :root{ --cell: 12px; --border: 1px; --border-color:#1f2937; }
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:#f6f8fc;color:#0f172a;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
+      display:flex;flex-direction:column
+    }
+    .header{padding:14px 16px 8px;font-weight:800;font-size:18px}
+    .container{flex:1;display:flex;flex-direction:column;gap:10px;padding:0 12px 16px;width:100%;max-width:100%}
 
-  /* 進捗バー（％＋ゲージ） */
-  .progress{position:relative;height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:4px 0 0 0;display:none}
-  .progress .bar{position:absolute;left:0;top:0;height:100%;width:0%;background:#06c755;transition:width .12s linear}
-  .progress-text{font-size:12px;opacity:.7;margin-top:6px;text-align:right}
+    .view{position:relative;flex:0 0 auto;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff;overflow:hidden}
+    .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);width:100%}
+    .cell{position:relative;overflow:hidden;line-height:1;user-select:none}
+    .hit{outline:2px solid #ef4444;outline-offset:-2px;z-index:1;box-shadow:0 0 0 2px rgba(239,68,68,.35) inset}
 
-  /* スキャナーモーダル */
-  .scanner-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
-  .scanner{background:#000;border-radius:14px;overflow:hidden;max-width:520px;width:92vw}
-  .scanner header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0f172a;color:#fff}
-  .scanner video{width:100%;height:auto;background:#000}
-  .scanner .footer{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f172a;color:#fff}
-  .scanner .tag{font-size:12px;opacity:.8}
-</style>
+    /* 検索＋カメラ（縦積み） */
+    .search{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .search .row{display:flex;gap:8px;align-items:center}
+    .search input{flex:1 1 auto;appearance:none;border:1px solid rgba(2,6,23,.1);background:#fff;border-radius:10px;padding:10px 12px;font-size:14px}
+    .btn{appearance:none;border:none;background:#0f172a;color:#fff;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;gap:6px;align-items:center;height:40px}
+    .btn.secondary{background:#e2e8f0;color:#0f172a}
+    .btn.block{width:100%;justify-content:center}
+
+    .loader{display:none;gap:8px;align-items:center;margin:4px 0 0 0;color:#334155;font-size:14px}
+    .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    .status{font-size:12px;opacity:.7;margin-top:4px}
+
+    /* 進捗バー（％＋ゲージ） */
+    .progress{position:relative;height:10px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin:4px 0 0 0;display:none}
+    .progress .bar{position:absolute;left:0;top:0;height:100%;width:0%;background:#06c755;transition:width .12s linear}
+    .progress-text{font-size:12px;opacity:.7;margin-top:6px;text-align:right}
+
+    /* スキャナーモーダル */
+    .scanner-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+    .scanner{background:#000;border-radius:14px;overflow:hidden;max-width:520px;width:92vw}
+    .scanner header{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0f172a;color:#fff}
+    .scanner video{width:100%;height:auto;background:#000}
+    .scanner .footer{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#0f172a;color:#fff}
+    .scanner .tag{font-size:12px;opacity:.8}
+  </style>
 </head>
 <body>
   <div class="header">売場サーチ（Fast v3, 2025年3月棚卸時点）</div>
@@ -64,7 +113,6 @@
         <button id="btnSearch" class="btn"><span class="material-icons">search</span>検索</button>
         <button id="btnClear" class="btn secondary"><span class="material-icons">backspace</span>クリア</button>
       </div>
-      <!-- ★ 未実装を削除 -->
       <button id="btnScan" class="btn secondary block"><span class="material-icons">photo_camera</span>カメラでJANを読み取る</button>
     </div>
 
@@ -324,124 +372,71 @@ $('inputQuery').addEventListener('keydown', e=>{
 $('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
 window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
 
-/* ===== バーコードスキャナー（確実起動版） ===== */
+/* ===== バーコードスキャナー（テストツールの起動方式を流用） ===== */
 let mediaStream = null;
-let detector = null;
-let zxingReader = null;
 let scanning = false;
 
-async function ensureScanner(){
-  // Browser Barcode Detector
-  if ('BarcodeDetector' in window) {
-    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128'];
-    try{ detector = new window.BarcodeDetector({formats}); }catch(_){ detector = null; }
-  }
-  // ZXing (UMD)
-  if (!detector && !zxingReader){
-    await new Promise((res,rej)=>{
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';
-      s.onload = res; s.onerror = rej; document.head.appendChild(s);
-    });
-    const ZX = window.ZXing;
-    if (ZX && ZX.BrowserMultiFormatReader) {
-      zxingReader = new ZX.BrowserMultiFormatReader();
-    } else if (ZX && ZX.BrowserBarcodeReader) {
-      zxingReader = new ZX.BrowserBarcodeReader();
-    }
-  }
-}
-
-/* 制約で失敗したら段階的に緩めて再試行 */
-async function getStreamWithFallback(){
-  const plans = [
-    { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} }, audio:false },
-    { video: { facingMode: { ideal: 'environment' } }, audio:false },
-    { video: true, audio:false }
-  ];
-  let lastErr = null;
-  for (const c of plans){
-    try{ return await navigator.mediaDevices.getUserMedia(c); }
-    catch(e){ lastErr = e; }
-  }
-  throw lastErr || new Error('getUserMedia failed');
-}
-
+/* フォールバック付きで getUserMedia を段階的に試す */
 async function startScanner(){
   try{
-    await ensureScanner();
-    // 先にモーダルを出す（iOSでの再描画タイミング安定）
+    // モーダルを先に開く（iOSでの再生許可を安定させる）
     $('#scannerModal').style.display='flex';
 
-    // ★ 確実に起動：まずはカメラプレビューを開始
-    mediaStream = await getStreamWithFallback();
-    const video = $('#scannerVideo');
-    video.setAttribute('playsinline','');
-    video.muted = true;
-    video.srcObject = mediaStream;
-    await video.play();
-    scanning = true;
+    // ★段階的フォールバック（テストツールの「背面で起動」に合わせた順序）
+    const plans = [
+      { audio:false, video:{ facingMode:{ ideal:'environment' } } },        // 1) 端末任せで背面
+      { audio:false, video:true }                                            // 2) さらにゆるく
+    ];
 
-    // 読み取り開始（デバイスによっては起動直後はフレームが暗いので少し待つ）
-    setTimeout(()=>startDetectLoop(video), 150);
+    let lastErr = null;
+    for(const cons of plans){
+      try{
+        mediaStream = await navigator.mediaDevices.getUserMedia(cons);
+        const video = $('#scannerVideo');
+        video.setAttribute('playsinline',''); // iOS対策
+        video.muted = true;
+        video.srcObject = mediaStream;
+        await video.play();
+        scanning = true;
+        return; // 起動成功
+      }catch(e){
+        lastErr = e;
+        // 次のプランへフォールバック
+      }
+    }
+
+    // すべて失敗した場合
+    const name = lastErr && (lastErr.name || lastErr.message) || String(lastErr);
+    let hint = '';
+    if(/NotAllowedError|Permission/i.test(name)) hint = '\n\nカメラ権限が拒否されています。端末設定でLINEのカメラを許可してください。';
+    else if(/NotFoundError|DevicesNotFound/i.test(name)) hint = '\n\nカメラが見つかりません。別端末でお試しください。';
+    else if(/OverconstrainedError|Constraint/i.test(name)) hint = '\n\n指定の解像度/FPSが未対応です。制約を外して再試行してください。';
+    else if(/SecureContext|https/i.test(name)) hint = '\n\nページは https:// で提供されている必要があります。';
+    throw new Error(name + hint);
 
   }catch(e){
     stopScanner();
-    const msg = e && (e.name || e.message) || String(e);
-    let hint = '';
-    if (/NotAllowedError|Permission/i.test(msg)) hint = '\n\nカメラ権限が拒否されています。端末設定でLINEのカメラを許可してください。';
-    if (/NotFoundError|DevicesNotFound/i.test(msg)) hint = '\n\n背面カメラが見つかりません。別端末でお試しください。';
-    if (/SecureContext|https/i.test(msg)) hint = '\n\nページは https:// で提供されている必要があります。';
-    alert('カメラを開始できませんでした: ' + msg + hint);
-  }
-}
-
-function startDetectLoop(video){
-  // 1) 標準API
-  if (detector){
-    const loop = async ()=>{
-      if(!scanning) return;
-      try{
-        const codes = await detector.detect(video);
-        if(codes && codes.length){
-          const raw = (codes[0].rawValue||'').replace(/\D/g,'');
-          if(/^\d{13}$/.test(raw)) return onScanResult(raw);
-        }
-      }catch(_){}
-      requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
-    return;
-  }
-  // 2) ZXing
-  if (zxingReader){
-    zxingReader.decodeFromVideoDevice(null, 'scannerVideo', (result, err) => {
-      if(!scanning) return;
-      if (result){
-        const text = (result.getText ? result.getText() : result.text || '');
-        const raw = String(text).replace(/\D/g,'');
-        if(/^\d{13}$/.test(raw)) onScanResult(raw);
-      }
-      // err はノイズなので捨てる
-    });
+    alert('カメラを開始できませんでした: ' + (e?.message || e));
   }
 }
 
 function stopScanner(){
   scanning = false;
-  try{ if(zxingReader && zxingReader.reset) zxingReader.reset(); }catch(_){}
   try{ if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); } }catch(_){}
+  mediaStream = null;
   $('#scannerModal').style.display='none';
 }
 
+/* 読み取り結果（今はカメラ起動確認目的。JANデコードを後で差す想定） */
 function onScanResult(jan){
   stopScanner();
   $('#inputQuery').value = jan;
   searchByJanLocal(jan);
 }
 
-$('btnScan').addEventListener('click', ()=> startScanner());
-$('btnScannerClose').addEventListener('click', ()=> stopScanner());
+/* ボタン */
+$('btnScan').addEventListener('click', startScanner);
+$('btnScannerClose').addEventListener('click', stopScanner);
 </script>
 </body>
 </html>
