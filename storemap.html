@@ -307,34 +307,16 @@ async function initLoad(){
   }
 }
 
-/***** 初期化・イベント *****/
-(async ()=>{
-  await liff.init({ liffId: LIFF_ID });
-  if(!liff.isLoggedIn()){ liff.login(); return; }
-  await initLoad();
-})();
-$('btnSearch').addEventListener('click', ()=>{
-  const q = $('inputQuery').value.trim();
-  if(/^\d{13}$/.test(q)) searchByJanLocal(q); else searchText(q);
-});
-$('inputQuery').addEventListener('keydown', e=>{
-  if(e.key==='Enter'){
-    const q = $('inputQuery').value.trim();
-    if(/^\d{13}$/.test(q)) searchByJanLocal(q); else searchText(q);
-  }
-});
-$('btnClear').addEventListener('click', ()=>{ $('inputQuery').value=''; clearHits(); $('status').textContent=''; });
-window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
-
 /* ===== バーコードスキャナー ===== */
-let mediaStream = null;
-let detector = null;
-let zxingReader = null;
-let scanning = false;
+let mediaStream = null;   // getUserMediaで開いた場合の参照（ZXing経由でもvideo.srcObjectを拾う）
+let detector = null;      // BarcodeDetector
+let zxingReader = null;   // ZXing リーダ
+let scanning = false;     // 実行中フラグ
+let scannerStarting = false; // 起動中（再入防止）
 
 async function ensureScanner(){
   if ('BarcodeDetector' in window) {
-    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128']; // iOS/Android差異対策でean-13表記
+    const formats = ['ean-13','ean-8','upc-a','upc-e','code-128'];
     try{ detector = new window.BarcodeDetector({formats}); }catch(_){ detector = null; }
   }
   if (!detector && !zxingReader){
@@ -345,27 +327,30 @@ async function ensureScanner(){
     zxingReader = new (ZX.BrowserMultiFormatReader || ZX.BrowserBarcodeReader)();
   }
 }
+
 async function startScanner(){
+  if (scannerStarting || scanning) return; // 二重起動防止
+  scannerStarting = true;
+  $('#btnScan').disabled = true;
   try{
     await ensureScanner();
-    // ここはセレクタ両対応の $ を使用（'#scannerModal' でも 'scannerModal' でもOK）
     $('#scannerModal').style.display='flex';
 
-    const constraints = {
-      video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} },
-      audio:false
-    };
-    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-
     const video = $('#scannerVideo');
-    // iOS対策：playsinline + muted + attribute
-    video.setAttribute('playsinline','');
+    video.setAttribute('playsinline',''); // iOS
     video.muted = true;
-    video.srcObject = mediaStream;
-    await video.play();
-    scanning = true;
 
     if (detector){
+      // --- ① Detectorあり：自前で getUserMedia を開く ---
+      const constraints = {
+        video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720} },
+        audio:false
+      };
+      mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = mediaStream;
+      await video.play();
+      scanning = true;
+
       const loop = async ()=>{
         if(!scanning) return;
         try{
@@ -378,7 +363,10 @@ async function startScanner(){
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
+
     }else if (zxingReader){
+      // --- ② Detectorなし：ZXingにだけ開かせる（ここでは getUserMedia を呼ばない） ---
+      scanning = true;
       await zxingReader.decodeFromVideoDevice(null, 'scannerVideo', (result) => {
         if(!scanning) return;
         if (result){
@@ -386,6 +374,8 @@ async function startScanner(){
           if(/^\d{13}$/.test(raw)) onScanResult(raw);
         }
       });
+      // ZXingが video.srcObject に MediaStream を挿すので、それを参照しておく
+      mediaStream = video.srcObject || null;
     }
   }catch(e){
     stopScanner();
@@ -395,21 +385,53 @@ async function startScanner(){
     if (/NotFoundError|DevicesNotFound/i.test(msg)) hint = '\n\n背面カメラが見つかりません。別端末でお試しください。';
     if (/SecureContext|https/i.test(msg)) hint = '\n\nページは https:// で提供されている必要があります。';
     alert('カメラを開始できませんでした: ' + msg + hint);
+  } finally {
+    scannerStarting = false;
+    $('#btnScan').disabled = false;
   }
 }
+
 function stopScanner(){
   scanning = false;
-  try{ if(zxingReader && zxingReader.reset) zxingReader.reset(); }catch(_){}
-  try{ if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); } }catch(_){}
+  // ZXing経由のストリームを閉じる
+  try{ if (zxingReader && zxingReader.reset) zxingReader.reset(); }catch(_){}
+  try{
+    const video = $('#scannerVideo');
+    const s = video && video.srcObject;
+    if (s && s.getTracks){ s.getTracks().forEach(t=>t.stop()); }
+    if (video){ video.pause(); video.srcObject = null; }
+  }catch(_){}
+  mediaStream = null;
   $('#scannerModal').style.display='none';
 }
+
 function onScanResult(jan){
   stopScanner();
   $('#inputQuery').value = jan;
   searchByJanLocal(jan);
 }
-$('btnScan').addEventListener('click', ()=> startScanner());
-$('btnScannerClose').addEventListener('click', ()=> stopScanner());
+
+/***** 初期化・イベント *****/
+(async ()=>{
+  await liff.init({ liffId: LIFF_ID });
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+  await initLoad();
+})();
+$('#btnSearch').addEventListener('click', ()=>{
+  const q = $('#inputQuery').value.trim();
+  if(/^\d{13}$/.test(q)) searchByJanLocal(q); else searchText(q);
+});
+$('#inputQuery').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const q = $('#inputQuery').value.trim();
+    if(/^\d{13}$/.test(q)) searchByJanLocal(q); else searchText(q);
+  }
+});
+$('#btnClear').addEventListener('click', ()=>{ $('#inputQuery').value=''; clearHits(); $('#status').textContent=''; });
+window.addEventListener('resize', ()=>{ if(current.cols) fitToWidth(); });
+
+$('#btnScan').addEventListener('click', ()=> startScanner());
+$('#btnScannerClose').addEventListener('click', ()=> stopScanner());
 </script>
 </body>
 </html>
