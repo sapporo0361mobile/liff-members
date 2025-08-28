@@ -1,82 +1,51 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<!-- ① LIFF SDK -->
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-<!-- ② あなたの LIFF ID を設定 -->
-<script>window.LIFF_ID = "2007972627-vnAq4qbB";</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>ホーム</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow-x:hidden}
+    html{-webkit-text-size-adjust:100%}
+    body{
+      margin:0;background:#f6f8fc;color:#0f172a;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
+      display:flex;flex-direction:column
+    }
+    .page{flex:1;display:flex;flex-direction:column;padding-bottom:72px}
+    .container{width:100%;max-width:880px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,.06);margin-bottom:12px}
 
-<!-- ③ LINEアプリ外ブロック用ガード（共通貼り付け） -->
-<style id="liff-guard-style">body{display:none!important}</style>
-<script>
-(function(){
-  var LIFF_ID = window.LIFF_ID || "";
-  function allow(){ var st=document.getElementById('liff-guard-style'); if(st) st.remove(); if(document.body) document.body.style.display=''; }
-  function block(){
-    var deeplink = LIFF_ID ? ('https://liff.line.me/' + encodeURIComponent(LIFF_ID)) : '';
-    document.open();
-    document.write('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'+
-      '<title>このページはLINEアプリ専用です</title>'+
-      '<style>html,body{height:100%}body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}'+
-      '.card{max-width:720px;margin:0 16px;background:#111827;border-radius:14px;padding:18px 16px;border:1px solid rgba(255,255,255,.08)}'+
-      '.h{font-weight:800;margin:4px 0 8px;font-size:16px}.p{opacity:.9;line-height:1.6;font-size:14px}'+
-      '.btn{margin-top:12px;display:inline-block;background:#06c755;color:#0b2314;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700}'+
-      '</style>'+
-      '<div class="card"><div class="h">このページは LINE アプリ内でのみ利用できます</div>'+
-      '<div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>'+
-      (deeplink ? '<a class="btn" href="'+deeplink+'">LINEで開く</a>' : '')+
-      '</div>');
-    document.close();
-  }
-  function uaLooksLikeLine(){ var ua = navigator.userAgent || ''; return /Line\/|LIFF/i.test(ua); }
-  if(!window.liff){ if(uaLooksLikeLine()){ allow(); } else { block(); } return; }
-  liff.init({ liffId: LIFF_ID }).then(function(){ if(liff.isInClient()){ allow(); } else { block(); } })
-    .catch(function(){ if(uaLooksLikeLine()){ allow(); } else { block(); } });
-})();
-</script>
+    /* プロフィール */
+    .profile{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0}
+    .avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
+    .name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
 
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>ホーム</title>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box}
-html,body{width:100%;height:100%;overflow-x:hidden}
-html{-webkit-text-size-adjust:100%}
-body{
-  margin:0;background:#f6f8fc;color:#0f172a;
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;
-  display:flex;flex-direction:column
-}
-.page{flex:1;display:flex;flex-direction:column;padding-bottom:72px}
-.container{width:100%;max-width:880px;margin:0 auto;padding:16px}
-.card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(2,6,23,.06);margin-bottom:12px}
+    /* バッジ（横スクロール） */
+    .meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
+    .meta::-webkit-scrollbar{display:none}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
+    .badge .label{opacity:.7}.badge .value{font-weight:700}
 
-/* プロフィール */
-.profile{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;min-width:0}
-.avatar{width:72px;height:72px;border-radius:50%;border:2px solid rgba(2,6,23,.06);background:#e2e8f0;object-fit:cover}
-.name{margin:0 0 6px;font-size:clamp(18px,4.6vw,22px);font-weight:800}
+    /* お知らせ */
+    .notice-title{font-size:16px;font-weight:800;margin:0 0 8px}
+    .notice-list{display:flex;flex-direction:column;gap:8px}
+    .notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
+    .notice-date{font-size:12px;opacity:.6;min-width:84px}
+    .notice-text{font-size:14px}
+    .pin{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#fde68a;font-size:11px;color:#92400e}
 
-/* バッジ横並び */
-.meta{display:flex;flex-wrap:nowrap;gap:8px;overflow:auto;scrollbar-width:none}
-.meta::-webkit-scrollbar{display:none}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid rgba(2,6,23,.08);background:#eef7ff;font-size:12px;white-space:nowrap}
-.badge .label{opacity:.7}.badge .value{font-weight:700}
-
-/* お知らせ */
-.notice-title{font-size:16px;font-weight:800;margin:0 0 8px}
-.notice-list{display:flex;flex-direction:column;gap:8px}
-.notice-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid rgba(2,6,23,.08);border-radius:12px;background:#fff}
-.notice-date{font-size:12px;opacity:.6;min-width:84px}
-.notice-text{font-size:14px}
-
-/* ボトムナビ */
-.bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-.bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
-.bottom-nav .material-icons{font-size:24px;color:#0f172a}
-.badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
-</style>
+    /* ボトムナビ */
+    .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
+    .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0;position:relative}
+    .bottom-nav .material-icons{font-size:24px;color:#0f172a}
+    .badge-dot{position:absolute;right:20px;top:6px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;line-height:16px;font-weight:700;display:none}
+  </style>
 </head>
 <body>
 <div class="page">
@@ -108,6 +77,7 @@ body{
   </main>
 </div>
 
+<!-- ボトムナビ（未読バッジ含む） -->
 <nav class="bottom-nav">
   <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
   <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div><span class="badge-dot" id="chatBadge"></span></button>
@@ -117,24 +87,29 @@ body{
 </nav>
 
 <script>
-const LIFF_ID = "2007972627-vnAq4qbB";
-const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz7Ywg4cHNYzir4tQ7BcoThxpkoTb5bjrDmrDPrDqY8s3LXARPrizjSuB-4mZxU4hHuzw/exec";
+/* ===== 設定を環境に合わせて変更 ===== */
+const LIFF_ID      = "2007972627-vnAq4qbB";
+const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzsGEwpl37rLvxn9H3oX0N6MFdyxJXDn6aloIjDtguuc4zZEBWUVz0ieXiYsA1KYrj69Q/exec"; // あなたのGAS WebアプリURL
 const URL_REGISTER = "./register.html";
 
 const $ = (id)=>document.getElementById(id);
 let unreadTimer = null;
 
+/* ---- 共通通信 ---- */
 async function callServer(payload){
   const r = await fetch(GAS_ENDPOINT,{method:"POST",body:JSON.stringify(payload)});
-  const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
-  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status)); return j;
+  const t = await r.text();
+  let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
+  if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
 }
 
-/* 未読バッジ */
+/* ---- 未読バッジ ---- */
 async function refreshUnread(){
   try{
     const res = await callServer({ action:'unreadTotal', idToken: liff.getIDToken() });
-    const n = Number(res.unread||0); const b = $('chatBadge');
+    const n = Number(res.unread||0);
+    const b = $('chatBadge');
     if(b){
       if(n>0){ b.textContent = n>99 ? '99+' : n; b.style.display='inline-block'; }
       else{ b.style.display='none'; }
@@ -142,65 +117,78 @@ async function refreshUnread(){
   }catch(e){ console.error(e); }
 }
 
-/* お知らせ：シートから取得 → 描画 */
-function setNoticePlaceholder(){
-  const d = new Date(), z = n => String(n).padStart(2,'0');
-  $('n0date').textContent = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
-  $('n0text').textContent = 'ご不明点やご要望等ありましたら…「有原」までお願いいたします！';
-}
-async function fetchNotices(){
-  // 軽いキャッシュ（戻る時の即表示）
+/* ---- お知らせ取得（GAS: action=notices） ---- */
+async function loadNotices(){
+  const list = $('noticeList');
+  list.innerHTML = `
+    <div class="notice-item">
+      <div class="notice-date">—</div>
+      <div class="notice-text">読み込み中…</div>
+    </div>
+  `;
   try{
-    const cache = sessionStorage.getItem('notices_cache');
-    if(cache){ const j = JSON.parse(cache); renderNotices(j.items); }
-  }catch(_){}
-  try{
-    const res = await callServer({ action:'notices', idToken: liff.getIDToken(), limit: 5, sinceDays: 365, pinnedFirst: true });
-    if(res && res.ok){
-      renderNotices(res.items || []);
-      try{ sessionStorage.setItem('notices_cache', JSON.stringify(res)); }catch(_){}
-    }else{
-      console.warn('notices api error', res && res.error);
-    }
-  }catch(e){
-    console.warn('notices fetch failed', e);
-  }
-}
-function renderNotices(items){
-  const list = $('noticeList'); if(!list) return;
-  list.innerHTML = '';
-  if(!items || !items.length){
-    const wrap = document.createElement('div');
-    wrap.className = 'notice-item';
-    wrap.innerHTML = '<div class="notice-date">—</div><div class="notice-text">現在お知らせはありません。</div>';
-    list.appendChild(wrap);
-    return;
-  }
-  items.forEach(it=>{
-    const row = document.createElement('div'); row.className = 'notice-item';
-    const date = document.createElement('div'); date.className = 'notice-date'; date.textContent = it.date || '';
-    const text = document.createElement('div'); text.className = 'notice-text';
-    if(it.url){
-      const a = document.createElement('a'); a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.text || '';
-      text.appendChild(a);
-    }else{
-      text.textContent = it.text || '';
-    }
-    if(it.pinned){ const pin = document.createElement('span'); pin.textContent='📌'; pin.style.marginRight='6px'; text.prepend(pin); }
-    row.append(date, text); list.appendChild(row);
-  });
-}
+    const res = await callServer({
+      action:'notices',
+      idToken: liff.getIDToken(),
+      limit: 10,           // 表示件数
+      sinceDays: 365,      // 1年さかのぼる
+      pinnedFirst: true    // ピン留めは上に
+    });
 
-/* 初期化 */
+    const items = Array.isArray(res.items) ? res.items : [];
+    if(items.length === 0){
+      const d = new Date(); const z=n=>String(n).padStart(2,'0');
+      list.innerHTML = `
+        <div class="notice-item">
+          <div class="notice-date">${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}</div>
+          <div class="notice-text">現在お知らせはありません。</div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    for(const it of items){
+      const wrap = document.createElement('div');
+      wrap.className = 'notice-item';
+
+      const date = document.createElement('div');
+      date.className = 'notice-date';
+      date.textContent = it.date || '-';
+
+      const text = document.createElement('div');
+      text.className = 'notice-text';
+      const link = (it.url && it.url.trim()) ? `<br><a href="${it.url}" target="_blank" rel="noopener">詳細を見る</a>` : '';
+      const pin = it.pinned ? `<span class="pin">PIN</span>` : '';
+      text.innerHTML = `${escapeHtml(it.text)} ${pin}${link}`;
+
+      wrap.appendChild(date);
+      wrap.appendChild(text);
+      list.appendChild(wrap);
+    }
+  }catch(err){
+    console.error(err);
+    list.innerHTML = `
+      <div class="notice-item">
+        <div class="notice-date">—</div>
+        <div class="notice-text">お知らせの読み込みに失敗しました。</div>
+      </div>`;
+  }
+}
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+
+/* ---- 初期化 ---- */
 (async ()=>{
   try{
     $('displayName').textContent = '読み込み中…';
+
     await liff.init({ liffId: LIFF_ID });
     if(!liff.isLoggedIn()){ liff.login(); return; }
 
+    // 会員ステータス
     const st = await callServer({ idToken: liff.getIDToken(), action:"status" });
     if(!st.bound){ location.replace(URL_REGISTER); return; }
 
+    // プロフィール表示（以前の機能そのまま）
     const ln = (st.lastName||'').trim(), fn = (st.firstName||'').trim();
     const name = [ln,fn].filter(Boolean).join(' ') || (st.displayName||'職員');
     $('displayName').textContent = name;
@@ -210,15 +198,21 @@ function renderNotices(items){
     const pf = await liff.getProfile().catch(()=>({pictureUrl:''}));
     if(pf.pictureUrl){ $('avatar').src = pf.pictureUrl; $('avatar').alt = name; }
 
-    setNoticePlaceholder();
-    await fetchNotices();
+    // お知らせロード
+    await loadNotices();
 
+    // 未読バッジ（以前の機能そのまま）
     await refreshUnread();
     unreadTimer = setInterval(refreshUnread, 5000);
     document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refreshUnread(); });
+
   }catch(err){
     console.error(err);
     $('displayName').textContent = 'エラー：' + (err?.message||err);
+    // お知らせはプレースホルダ表示
+    const d = new Date(), z=n=>String(n).padStart(2,'0');
+    $('n0date').textContent = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+    $('n0text').textContent = 'お知らせの読み込みに失敗しました。';
   }
 })();
 </script>
