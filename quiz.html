@@ -1,126 +1,89 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <!-- LIFF SDK -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <!-- LIFFガード（LINEアプリ外ブロック） -->
-  <script>window.LIFF_ID="2007972627-vnAq4qbB";</script>
-  <style id="liff-guard-style">body{display:none!important}</style>
-  <script>
-    (function(){
-      var LIFF_ID=window.LIFF_ID||"";
-      function allow(){ var st=document.getElementById('liff-guard-style'); if(st) st.remove(); if(document.body) document.body.style.display=''; }
-      function block(){
-        var deeplink = LIFF_ID ? ('https://liff.line.me/'+encodeURIComponent(LIFF_ID)) : '';
-        document.open();document.write('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>このページはLINEアプリ専用です</title><style>html,body{height:100%}body{margin:0;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,Arial}.card{max-width:720px;margin:0 16px;background:#111827;border-radius:14px;padding:18px 16px;border:1px solid rgba(255,255,255,.08)}.h{font-weight:800;margin:4px 0 8px;font-size:16px}.p{opacity:.9;line-height:1.6;font-size:14px}.btn{margin-top:12px;display:inline-block;background:#06c755;color:#0b2314;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:700}</style><div class="card"><div class="h">このページは LINE アプリ内でのみ利用できます</div><div class="p">LINE のトーク、または <b>ホーム → サービス</b> から開き直してください。</div>'+(deeplink?'<a class="btn" href="'+deeplink+'">LINEで開く</a>':'')+'</div>');document.close();
-      }
-      function uaLooksLikeLine(){ var ua=navigator.userAgent||''; return /Line\/|LIFF/i.test(ua); }
-      if(!window.liff){ if(uaLooksLikeLine()){ allow(); } else { block(); } return; }
-      liff.init({ liffId: LIFF_ID }).then(function(){ if(liff.isInClient()){ allow(); } else { block(); } })
-        .catch(function(){ if(uaLooksLikeLine()){ allow(); } else { block(); } });
-    })();
-  </script>
-
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>学習クイズ</title>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- LIFF（ログインが必要な場合に備えて読み込み。ログイン不要なら使わなくてもOK） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>window.LIFF_ID="2007972627-vnAq4qbB";</script>
+
   <style>
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial;display:flex;flex-direction:column}
-    .container{max-width:880px;margin:0 auto;padding:16px 16px 80px;width:100%}
+    body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
+    .container{max-width:880px;margin:0 auto;padding:16px 16px 64px}
     .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:14px;padding:16px}
     .card + .card{margin-top:12px}
-    h1{margin:0 0 8px;font-size:18px;font-weight:800}
-    .muted{color:#64748b}
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .btn{appearance:none;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
     .btn.primary{background:#06c755;color:#0b2314}
     .btn.secondary{background:#e2e8f0;color:#0f172a}
     .btn.ghost{background:#fff;border:1px solid rgba(2,6,23,.12);color:#0f172a}
     .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
-    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
     .opt{display:block;width:100%;text-align:left}
     .opt.disabled{opacity:.65;pointer-events:none}
     .opt.correct{border:1px solid #16a34a;background:#dcfce7}
     .opt.wrong{border:1px solid #b91c1c;background:#fee2e2}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px}
+    .muted{color:#64748b}
     .qno{font-weight:800}
     .exp{margin-top:10px;padding:12px;border-radius:12px;background:#f1f5f9;border:1px solid rgba(2,6,23,.06)}
-    .bottom-nav{display:flex;justify-content:space-around;align-items:center;height:56px;background:#fff;border-top:1px solid rgba(2,6,23,.08);position:fixed;bottom:0;left:0;right:0;z-index:50}
-    .bottom-nav button{flex:1;appearance:none;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#475569;padding:4px 0}
-    .bottom-nav .material-icons{font-size:24px;color:#0f172a}
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- 設定 -->
-    <section class="card" id="setup">
-      <h1>学習クイズ</h1>
-      <div class="muted" id="uinfo">読み込み中…</div>
+<div class="container">
+  <!-- 設定 -->
+  <section class="card" id="setup">
+    <h1 style="margin:0 0 8px">学習クイズ</h1>
+    <div class="muted" id="uinfo">準備中…</div>
 
-      <div style="margin-top:10px">
-        <div><strong>出題範囲（シート）</strong></div>
-        <div class="list" id="sheetList"></div>
+    <div style="margin-top:10px">
+      <div><strong>出題範囲（シート）</strong></div>
+      <div class="list" id="sheetList"></div>
+    </div>
+
+    <div style="margin-top:10px">
+      <div><strong>出題順</strong></div>
+      <div class="row">
+        <label><input type="radio" name="order" value="seq" checked> 順番どおり</label>
+        <label><input type="radio" name="order" value="rand"> ランダム</label>
       </div>
+    </div>
 
-      <div style="margin-top:10px">
-        <div><strong>出題順</strong></div>
-        <div class="row" role="group" aria-label="order">
-          <label><input type="radio" name="order" value="seq" checked> 順番どおり</label>
-          <label><input type="radio" name="order" value="rand"> ランダム</label>
-        </div>
-      </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnStart" class="btn primary">開始</button>
+      <button id="btnReset" class="btn ghost">選択クリア</button>
+    </div>
+    <div class="muted" id="setupMsg"></div>
+  </section>
 
-      <div class="row" style="margin-top:10px">
-        <button id="btnStart" class="btn primary"><span class="material-icons" style="vertical-align:middle">play_arrow</span>開始</button>
-        <button id="btnReset" class="btn ghost">選択クリア</button>
-      </div>
-      <div class="muted" id="setupMsg"></div>
-    </section>
-
-    <!-- 出題 -->
-    <section class="card" id="quiz" style="display:none">
-      <div class="row" style="justify-content:space-between">
-        <div><span class="pill" id="sheetName">-</span></div>
-        <div class="muted"><span id="progress">0/0</span>・正解 <span id="score">0</span></div>
-      </div>
-      <div style="margin-top:8px">
-        <div class="qno" id="qno"></div>
-        <div id="qtext" style="margin:6px 0 8px;white-space:pre-wrap"></div>
-      </div>
-      <div class="list" id="opts"></div>
-
-      <div class="exp" id="explain" style="display:none"></div>
-
-      <div class="row" style="margin-top:10px">
-        <button id="btnNext" class="btn secondary" disabled>次の問題</button>
-        <button id="btnFinish" class="btn ghost">終了</button>
-      </div>
-    </section>
-  </div>
-
-  <!-- 既存ナビ -->
-  <nav class="bottom-nav">
-    <button onclick="location.href='./index.html'"><span class="material-icons">home</span><div>ホーム</div></button>
-    <button onclick="location.href='./contacts.html'"><span class="material-icons">chat</span><div>チャット</div></button>
-    <button onclick="location.href='./shift.html'"><span class="material-icons">calendar_month</span><div>シフト</div></button>
-    <button onclick="location.href='./tools.html'"><span class="material-icons">build</span><div>ツール</div></button>
-    <button onclick="location.href='./settings.html'"><span class="material-icons">settings</span><div>設定</div></button>
-  </nav>
+  <!-- 出題 -->
+  <section class="card" id="quiz" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <div><span class="pill" id="sheetName">-</span></div>
+      <div class="muted"><span id="progress">0/0</span>・正解 <span id="score">0</span></div>
+    </div>
+    <div style="margin-top:8px">
+      <div class="qno" id="qno"></div>
+      <div id="qtext" style="margin:6px 0 8px;white-space:pre-wrap"></div>
+    </div>
+    <div class="list" id="opts"></div>
+    <div class="exp" id="explain" style="display:none"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnNext" class="btn secondary" disabled>次の問題</button>
+      <button id="btnFinish" class="btn ghost">終了</button>
+    </div>
+  </section>
+</div>
 
 <script>
-/* ===== 設定（差し替え） ===== */
-const LIFF_ID = "2007972627-vnAq4qbB";
-/* （1）メインGAS…会員判定用（既存のURL） */
-const MAIN_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxRi0b_BXD3in9T5gF_GO7BI5j_jpm23sv_3DTdTHv7AhuTsGmXi4rxgIWdRW9OB8q8dA/exec";
-/* （2）クイズGAS…問題API（この回答で作る新規GASのURL） */
-const QUIZ_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyotsqegB2vLZq6EtaMWFGnAffnVLTtADnv1aB3rv1nHeyLzb4-FFNJb38pR_k7M6Dhhg/exec";
+/* ==== 設定 ==== */
+// ★ デプロイしたクイズGASのWebアプリURLを貼る
+const QUIZ_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbyHIj6srzwiwSD1BZ7SP-QHZ8ZvpEddGEkFmNiEmP6H_Qcaei3ItG2X_KxE4te_IaaSOQ/exec";
 
-const $ = (id)=>document.getElementById(id);
+/* ==== ユーティリティ ==== */
+const $ = id => document.getElementById(id);
 function msg(t){ $('setupMsg').textContent = t||''; }
-
 async function postJSON(url, payload){
   const r = await fetch(url,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
@@ -128,22 +91,20 @@ async function postJSON(url, payload){
   return j;
 }
 
-/* ===== 状態 ===== */
-let QUESTIONS = [];
-let ORDER = 'seq';
-let idx = 0;
-let score = 0;
+/* ==== 状態 ==== */
+let QUESTIONS=[], ORDER='seq', idx=0, score=0;
 
-/* ===== 画面遷移 ===== */
+/* ==== 画面切替 ==== */
 function showSetup(){ $('setup').style.display=''; $('quiz').style.display='none'; }
 function showQuiz(){ $('setup').style.display='none'; $('quiz').style.display=''; }
 
-/* ===== シート一覧 ===== */
+/* ==== シート一覧を読み込む（自動で第1章があればチェック） ==== */
 async function loadSheetList(){
-  const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets', idToken:liff.getIDToken() });
+  const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets' });
   const list = res.sheets || [];
   const box = $('sheetList'); box.innerHTML = '';
   if(!list.length){ box.innerHTML = '<div class="muted">シートが見つかりません</div>'; return; }
+
   list.forEach(name=>{
     const label = document.createElement('label');
     label.className = 'btn ghost';
@@ -151,9 +112,13 @@ async function loadSheetList(){
     label.innerHTML = `<input type="checkbox" value="${name}"> ${name}`;
     box.appendChild(label);
   });
+
+  // 「第1章」があれば既定でチェック
+  const chk = Array.from(box.querySelectorAll('input[type=checkbox]')).find(i=>i.value==='第1章');
+  if(chk) chk.checked = true;
 }
 
-/* ===== 出題開始 ===== */
+/* ==== 出題開始（第1章だけでもOK） ==== */
 async function startQuiz(){
   try{
     msg(''); score=0; idx=0; QUESTIONS=[];
@@ -161,15 +126,15 @@ async function startQuiz(){
     if(!checked.length){ msg('出題範囲（シート）を1つ以上選んでください'); return; }
     ORDER = (document.querySelector('input[name="order"]:checked')?.value === 'rand') ? 'rand' : 'seq';
 
-    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLoad', idToken:liff.getIDToken(), sheets: checked /*, limitPerSheet: 任意 */ });
+    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLoad', sheets: checked });
     const rows = res.items || [];
-    if(!rows.length){ msg('問題が見つかりません'); return; }
+    if(!rows.length){ msg('問題が見つかりません。シートの列配置(A..H)・正解(G=1..4)をご確認ください。'); return; }
 
     QUESTIONS = rows.map(r=>({
       sheet: r.sheet, no: r.no, text: r.text,
-      choices: [r.c1,r.c2,r.c3,r.c4].filter(x=>x!==undefined),
+      choices: [r.c1,r.c2,r.c3,r.c4].filter(x=>x!==undefined && x!==''),
       answer: Number(r.ans||0), explain: r.explain || ''
-    })).filter(q=> q.text && q.choices.length>=2 && q.answer>=1 && q.answer<=q.choices.length);
+    }));
 
     if(ORDER==='rand'){
       for(let i=QUESTIONS.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [QUESTIONS[i],QUESTIONS[j]]=[QUESTIONS[j],QUESTIONS[i]]; }
@@ -182,7 +147,7 @@ async function startQuiz(){
   }
 }
 
-/* ===== 出題描画＆採点 ===== */
+/* ==== 出題 & 採点 ==== */
 function renderQuestion(){
   const total = QUESTIONS.length;
   if(idx>=total){ finishQuiz(); return; }
@@ -198,7 +163,7 @@ function renderQuestion(){
     const n=i+1;
     const btn = document.createElement('button');
     btn.className = 'btn ghost opt';
-    btn.innerHTML = `<span class="material-icons" style="vertical-align:middle;margin-right:6px">radio_button_unchecked</span>${n}. ${label}`;
+    btn.textContent = `${n}. ${label}`;
     btn.onclick = ()=> answer(n, btn);
     box.appendChild(btn);
   });
@@ -207,14 +172,13 @@ function renderQuestion(){
   $('explain').textContent='';
   $('btnNext').disabled = true;
 }
-
 function answer(n, btnEl){
   const q = QUESTIONS[idx];
   const opts = Array.from(document.querySelectorAll('.opt'));
   opts.forEach((b,k)=>{
     const ans = (k+1)===q.answer;
-    if(ans){ b.classList.add('correct'); b.querySelector('.material-icons').textContent='check_circle'; }
-    if(b===btnEl && !ans){ b.classList.add('wrong'); b.querySelector('.material-icons').textContent='cancel'; }
+    if(ans){ b.classList.add('correct'); }
+    if(b===btnEl && !ans){ b.classList.add('wrong'); }
     b.classList.add('disabled');
   });
   if(n===q.answer) score++;
@@ -222,38 +186,26 @@ function answer(n, btnEl){
   if(q.explain){ $('explain').style.display='block'; $('explain').textContent = q.explain; }
   $('btnNext').disabled = false;
 }
-
 function nextQuestion(){ idx++; renderQuestion(); }
-
-async function finishQuiz(){
-  // 任意: 学習ログ送信（保存したい時だけ）
-  try{
-    await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLog', idToken:liff.getIDToken(), total: QUESTIONS.length, correct: score, sheets: Array.from(document.querySelectorAll('#sheetList input:checked')).map(i=>i.value) });
-  }catch(_){}
+function finishQuiz(){
   showSetup();
-  msg(`学習終了：${QUESTIONS.length}問中 ${score}問正解でした。おつかれさま！`);
+  msg(`学習終了：${QUESTIONS.length}問中 ${score}問正解でした。`);
 }
 
-/* ===== 初期化 ===== */
+/* ==== 起動 ==== */
 (async ()=>{
+  $('uinfo').textContent = '初期化中…';
   try{
-    $('uinfo').textContent = '初期化中…';
-    await liff.init({ liffId: LIFF_ID });
-    if(!liff.isLoggedIn()){ liff.login(); return; }
+    // （ログイン不要で動かす想定。必要なら下2行を有効化）
+    // await liff.init({ liffId: window.LIFF_ID });
+    // if(!liff.isLoggedIn()){ liff.login(); return; }
 
-    // 既存のメインGASで登録/会員チェック（未登録なら登録ページへ）
-    const st = await postJSON(MAIN_GAS_ENDPOINT, { action:'status', idToken:liff.getIDToken() });
-    if(!st.bound){ location.replace('./register.html'); return; }
-    $('uinfo').textContent = `${st.store || ''} ${st.lastName||''} ${st.firstName||''}`.trim();
-
-    // クイズ側から章リスト取得
     await loadSheetList();
+    $('uinfo').textContent = '出題範囲を選んで「開始」してください';
   }catch(e){
     $('uinfo').textContent = '初期化エラー：'+(e?.message||e);
   }
 })();
-
-/* イベント */
 $('btnStart').addEventListener('click', startQuiz);
 $('btnReset').addEventListener('click', ()=>{ document.querySelectorAll('#sheetList input[type=checkbox]').forEach(c=>c.checked=false); msg(''); });
 $('btnNext').addEventListener('click', nextQuestion);
