@@ -157,7 +157,7 @@ async function loadSheetList(){
 async function startQuiz(){
   try{
     msg(''); score=0; idx=0; QUESTIONS=[];
-    const checked = ["第1章"]; // ←テスト固定
+    const checked = Array.from(document.querySelectorAll('#sheetList input[type=checkbox]:checked')).map(i=>i.value);
     if(!checked.length){ msg('出題範囲（シート）を1つ以上選んでください'); return; }
     ORDER = (document.querySelector('input[name="order"]:checked')?.value === 'rand') ? 'rand' : 'seq';
 
