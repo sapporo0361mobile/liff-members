@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>保険募集人クイズ</title>
+  <title>保険募集人2025クイズ</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
@@ -24,22 +24,28 @@
     .muted{color:#64748b}
     .qno{font-weight:800}
     .exp{margin-top:10px;padding:12px;border-radius:12px;background:#f1f5f9;border:1px solid rgba(2,6,23,.06)}
+
+    /* 進行中オーバーレイ */
+    .backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:1000}
+    .loader{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:center}
+    .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
+    @keyframes sp{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
 <div class="container">
   <!-- 設定 -->
   <section class="card" id="setup">
-    <h1 style="margin:0 0 8px">保険募集人クイズ</h1>
-    <div class="muted" id="uinfo">読み込み中…</div>
+    <h1 style="margin:0 0 8px">保険募集人2025クイズ</h1>
+    <div class="muted" id="uinfo">初期化中…</div>
 
     <div style="margin-top:12px">
-      <div><strong>教材を選択（スプレッドシート）</strong></div>
+      <div><strong>単位</strong></div>
       <div class="row" id="bookList"></div>
     </div>
 
     <div style="margin-top:12px">
-      <div><strong>出題範囲（シート）</strong></div>
+      <div><strong>出題範囲</strong></div>
       <div class="list" id="sheetList"></div>
     </div>
 
@@ -77,9 +83,13 @@
   </section>
 </div>
 
+<!-- 進行中オーバーレイ -->
+<div id="backdrop" class="backdrop">
+  <div class="loader"><div class="spin"></div><div id="busyText">処理中…</div></div>
+</div>
+
 <script>
 /* ==== 設定 ==== */
-// クイズGAS（上のコードをウェブアプリとしてデプロイしたURL）
 const QUIZ_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbzjEb1DoxPO-8IQGgrnVbJJ2HNqxAiry-m72TS6vBqFL9-R3ADUEqVoea1JVGd8DYIPrQ/exec";
 
 /* ==== ユーティリティ ==== */
@@ -91,6 +101,8 @@ async function postJSON(url, payload){
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
+function showBusy(text){ $('busyText').textContent = text || '処理中…'; $('backdrop').style.display='flex'; }
+function hideBusy(){ $('backdrop').style.display='none'; }
 
 /* ==== 状態 ==== */
 let BOOKS=[], BOOK_KEY=null;
@@ -107,7 +119,7 @@ async function loadBooks(){
   const box = $('bookList'); box.innerHTML = '';
   if(!BOOKS.length){ box.innerHTML = '<span class="muted">教材が見つかりません</span>'; return; }
 
-  BOOKS.forEach((b,i)=>{
+  BOOKS.forEach((b)=>{
     const id = 'bk_'+b.key;
     const label = document.createElement('label');
     label.innerHTML = `<input type="radio" name="book" id="${id}" value="${b.key}"> ${b.label}`;
@@ -115,7 +127,7 @@ async function loadBooks(){
     box.appendChild(label);
   });
 
-  // 先頭を選択してシート読込
+  // 先頭選択 → シート読込
   BOOK_KEY = BOOKS[0].key;
   box.querySelector(`input[value="${BOOK_KEY}"]`).checked = true;
   await loadSheetList(BOOK_KEY);
@@ -124,42 +136,61 @@ async function loadBooks(){
   box.addEventListener('change', async e=>{
     if(e.target && e.target.name==='book'){
       BOOK_KEY = e.target.value;
-      await loadSheetList(BOOK_KEY);
+      await loadSheetList(BOOK_KEY); // ← この中で「読み込み中…」を表示する
     }
   });
 }
 
-/* ==== シート一覧 ==== */
+/* ==== シート一覧（教材切替時に「読み込み中…」） ==== */
 async function loadSheetList(bookKey){
-  const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets', bookKey });
-  const list = res.sheets || [];
-  const box = $('sheetList'); box.innerHTML = '';
-  if(!list.length){ box.innerHTML = '<div class="muted">シートが見つかりません</div>'; return; }
-
-  list.forEach(name=>{
-    const label = document.createElement('label');
-    label.className = 'btn ghost';
-    label.style.display='flex'; label.style.alignItems='center'; label.style.gap='8px'; label.style.padding='8px 10px';
-    label.innerHTML = `<input type="checkbox" value="${name}"> ${name}`;
-    box.appendChild(label);
-  });
-
-  // 「第1章」があれば既定でチェック
-  const chk = Array.from(box.querySelectorAll('input[type=checkbox]')).find(i=>i.value==='第1章');
-  if(chk) chk.checked = true;
+  const box = $('sheetList');
+  // インラインの読み込み表示
+  box.innerHTML = `
+    <div class="muted" style="display:flex;align-items:center;gap:8px">
+      <span class="spin" style="width:14px;height:14px;border-width:2px"></span>読み込み中…
+    </div>`;
+  try{
+    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets', bookKey });
+    const list = res.sheets || [];
+    if(!list.length){
+      box.innerHTML = '<div class="muted">シートが見つかりません</div>';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach(name=>{
+      const label = document.createElement('label');
+      label.className = 'btn ghost';
+      label.style.display='flex'; label.style.alignItems='center'; label.style.gap='8px'; label.style.padding='8px 10px';
+      label.innerHTML = `<input type="checkbox" value="${name}"> ${name}`;
+      box.appendChild(label);
+    });
+    // 「第1章」があれば既定チェック
+    const chk = Array.from(box.querySelectorAll('input[type=checkbox]')).find(i=>i.value==='第1章');
+    if(chk) chk.checked = true;
+    msg('');
+  }catch(e){
+    box.innerHTML = '<div class="muted">読み込みに失敗しました</div>';
+    msg('シート取得エラー：'+(e?.message||e));
+  }
 }
 
-/* ==== 出題開始 ==== */
+/* ==== 出題開始（開始〜表示までオーバーレイ「開始しています…」） ==== */
 async function startQuiz(){
+  const startBtn = $('btnStart');
+  startBtn.disabled = true;
   try{
-    msg(''); score=0; idx=0; QUESTIONS=[];
+    msg('');
+    score=0; idx=0; QUESTIONS=[];
     const checked = Array.from(document.querySelectorAll('#sheetList input[type=checkbox]:checked')).map(i=>i.value);
-    if(!checked.length){ msg('出題範囲（シート）を1つ以上選んでください'); return; }
+    if(!checked.length){ msg('出題範囲を選んでください'); startBtn.disabled=false; return; }
     ORDER = (document.querySelector('input[name="order"]:checked')?.value === 'rand') ? 'rand' : 'seq';
+
+    // ここで「開始しています…」を表示
+    showBusy('開始しています…');
 
     const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLoad', bookKey: BOOK_KEY, sheets: checked });
     const rows = res.items || [];
-    if(!rows.length){ msg('問題が見つかりません'); return; }
+    if(!rows.length){ hideBusy(); msg('問題が見つかりません'); startBtn.disabled=false; return; }
 
     QUESTIONS = rows.map(r=>({
       sheet: r.sheet, no: r.no, text: r.text,
@@ -170,8 +201,16 @@ async function startQuiz(){
     if(ORDER==='rand'){
       for(let i=QUESTIONS.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [QUESTIONS[i],QUESTIONS[j]]=[QUESTIONS[j],QUESTIONS[i]]; }
     }
-    renderQuestion(); showQuiz();
-  }catch(e){ msg('読み込みに失敗しました：'+(e?.message||e)); }
+
+    renderQuestion();
+    hideBusy();     // クイズ描画直後にオーバーレイを消す
+    showQuiz();
+  }catch(e){
+    hideBusy();
+    msg('読み込みに失敗しました：'+(e?.message||e));
+  }finally{
+    startBtn.disabled = false;
+  }
 }
 
 /* ==== 出題 & 採点 ==== */
@@ -228,12 +267,8 @@ async function finishQuiz(){
 (async ()=>{
   try{
     $('uinfo').textContent = '教材一覧を取得中…';
-    // 必要なら LIFF ログインを有効化
-    // await liff.init({ liffId: "2007972627-vnAq4qbB" });
-    // if(!liff.isLoggedIn()){ liff.login(); return; }
-
     await loadBooks();
-    $('uinfo').textContent = '教材と出題範囲（シート）を選んで「開始」してください';
+    $('uinfo').textContent = '教材と出題範囲を選んで「開始」してください';
   }catch(e){
     $('uinfo').textContent = '初期化エラー：'+(e?.message||e);
   }
