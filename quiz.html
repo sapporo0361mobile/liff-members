@@ -194,7 +194,7 @@ function finishQuiz(){
 
 /* ==== 起動 ==== */
 (async ()=>{
-  $('uinfo').textContent = '初期化中…';
+  $('uinfo').textContent = '読み込み中…';
   try{
     // （ログイン不要で動かす想定。必要なら下2行を有効化）
     // await liff.init({ liffId: window.LIFF_ID });
@@ -203,7 +203,7 @@ function finishQuiz(){
     await loadSheetList();
     $('uinfo').textContent = '出題範囲を選んで「開始」してください';
   }catch(e){
-    $('uinfo').textContent = '初期化エラー：'+(e?.message||e);
+    $('uinfo').textContent = '読み込みエラー：'+(e?.message||e);
   }
 })();
 $('btnStart').addEventListener('click', startQuiz);
