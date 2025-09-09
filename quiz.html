@@ -3,9 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>保険募集人2025クイズ</title>
+  <title>保険募集人クイズ</title>
+
+  <!-- （任意）LIFF：idTokenを使いたい場合だけ。不要なら読み込み/使用とも省略可。 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>window.LIFF_ID="2007972627-vnAq4qbB";</script>
+
   <style>
+    *,*::before,*::after{box-sizing:border-box}
     body{margin:0;background:#f6f8fc;color:#0f172a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP",Arial}
     .container{max-width:880px;margin:0 auto;padding:16px 16px 64px}
     .card{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:14px;padding:16px}
@@ -24,10 +29,7 @@
     .muted{color:#64748b}
     .qno{font-weight:800}
     .exp{margin-top:10px;padding:12px;border-radius:12px;background:#f1f5f9;border:1px solid rgba(2,6,23,.06)}
-
-    /* 進行中オーバーレイ */
-    .backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:1000}
-    .loader{background:#fff;border:1px solid rgba(2,6,23,.08);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:center}
+    /* ローディング用 */
     .spin{width:16px;height:16px;border-radius:50%;border:3px solid #cbd5e1;border-top-color:#06c755;animation:sp 1s linear infinite}
     @keyframes sp{to{transform:rotate(360deg)}}
   </style>
@@ -36,20 +38,20 @@
 <div class="container">
   <!-- 設定 -->
   <section class="card" id="setup">
-    <h1 style="margin:0 0 8px">保険募集人2025クイズ</h1>
-    <div class="muted" id="uinfo">初期化中…</div>
+    <h1 style="margin:0 0 8px">保険募集人クイズ</h1>
+    <div class="muted" id="uinfo">準備中…</div>
 
-    <div style="margin-top:12px">
-      <div><strong>単位</strong></div>
+    <div style="margin-top:10px">
+      <div><strong>教材を選択</strong></div>
       <div class="row" id="bookList"></div>
     </div>
 
-    <div style="margin-top:12px">
+    <div style="margin-top:10px">
       <div><strong>出題範囲</strong></div>
       <div class="list" id="sheetList"></div>
     </div>
 
-    <div style="margin-top:12px">
+    <div style="margin-top:10px">
       <div><strong>出題順</strong></div>
       <div class="row">
         <label><input type="radio" name="order" value="seq" checked> 順番どおり</label>
@@ -57,7 +59,7 @@
       </div>
     </div>
 
-    <div class="row" style="margin-top:12px">
+    <div class="row" style="margin-top:10px">
       <button id="btnStart" class="btn primary">開始</button>
       <button id="btnReset" class="btn ghost">選択クリア</button>
     </div>
@@ -83,79 +85,77 @@
   </section>
 </div>
 
-<!-- 進行中オーバーレイ -->
-<div id="backdrop" class="backdrop">
-  <div class="loader"><div class="spin"></div><div id="busyText">処理中…</div></div>
-</div>
-
 <script>
 /* ==== 設定 ==== */
-const QUIZ_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbznXJfiFUrT0lOGEdLWpDkM6uHMTk1ulXau947taDQUVfSQG3F4b98XjakRQ_znhAVr4g/exec";
+// ★ デプロイしたクイズGASのWebアプリURLに置き換え
+const QUIZ_GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwW9-ev9Y-MM7lhufb6Gd6K9ApJNPfPQj94UkqRpi6hx0T5AvAQp3yyLw2lcehFFnbQNg/exec";
 
-/* ==== ユーティリティ ==== */
 const $ = id => document.getElementById(id);
 function msg(t){ $('setupMsg').textContent = t||''; }
+
+/* 共通POST */
 async function postJSON(url, payload){
   const r = await fetch(url,{method:"POST",body:JSON.stringify(payload)});
   const t = await r.text(); let j={}; try{ j=JSON.parse(t);}catch(e){ j={ok:false,error:"JSON parse failed: "+t} }
   if(!r.ok || !j.ok) throw new Error(j.error||("HTTP "+r.status));
   return j;
 }
-function showBusy(text){ $('busyText').textContent = text || '処理中…'; $('backdrop').style.display='flex'; }
-function hideBusy(){ $('backdrop').style.display='none'; }
 
-/* ==== 状態 ==== */
-let BOOKS=[], BOOK_KEY=null;
+/* 状態 */
+let BOOK_KEY = null;          // 'basic' | 'pro'
 let QUESTIONS=[], ORDER='seq', idx=0, score=0;
+let idToken = null;           // 任意：LIFFを使う場合だけ
 
-/* ==== 画面切替 ==== */
+/* 画面切替 */
 function showSetup(){ $('setup').style.display=''; $('quiz').style.display='none'; }
 function showQuiz(){ $('setup').style.display='none'; $('quiz').style.display=''; }
 
-/* ==== 教材一覧 ==== */
+/* 教材リストの取得＆表示 */
 async function loadBooks(){
-  const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizBooks' });
-  BOOKS = res.books || [];
-  const box = $('bookList'); box.innerHTML = '';
-  if(!BOOKS.length){ box.innerHTML = '<span class="muted">教材が見つかりません</span>'; return; }
+  const box = $('bookList');
+  box.innerHTML = `<span class="spin"></span>&nbsp;読み込み中…`;
+  try{
+    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'books', idToken });
+    const books = res.books || [];
+    if(!books.length){ box.innerHTML = '<div class="muted">教材が見つかりません</div>'; return; }
 
-  BOOKS.forEach((b)=>{
-    const id = 'bk_'+b.key;
-    const label = document.createElement('label');
-    label.innerHTML = `<input type="radio" name="book" id="${id}" value="${b.key}"> ${b.label}`;
-    label.style.padding = '6px 10px';
-    box.appendChild(label);
-  });
+    box.innerHTML = '';
+    books.forEach(b=>{
+      const label = document.createElement('label');
+      label.className = 'btn ghost';
+      label.style.padding = '6px 10px';
+      label.innerHTML = `<input type="radio" name="book" value="${b.key}"> ${b.label}`;
+      box.appendChild(label);
+    });
 
-  // 先頭選択 → シート読込
-  BOOK_KEY = BOOKS[0].key;
-  box.querySelector(`input[value="${BOOK_KEY}"]`).checked = true;
-  await loadSheetList(BOOK_KEY);
+    // 既定は先頭
+    const first = box.querySelector('input[name=book]');
+    if(first){ first.checked = true; BOOK_KEY = first.value; await loadSheetList(BOOK_KEY); }
 
-  // 切替イベント
-  box.addEventListener('change', async e=>{
-    if(e.target && e.target.name==='book'){
-      BOOK_KEY = e.target.value;
-      await loadSheetList(BOOK_KEY); // ← この中で「読み込み中…」を表示する
-    }
-  });
+    // 変更イベント
+    box.addEventListener('change', async (e)=>{
+      if(e.target && e.target.name==='book'){
+        BOOK_KEY = e.target.value;
+        await loadSheetList(BOOK_KEY); // 教材変更→シート更新（読み込み中表示あり）
+      }
+    });
+  }catch(e){
+    box.innerHTML = '<div class="muted">教材の取得に失敗しました</div>';
+    msg('教材取得エラー：'+(e?.message||e));
+  }
 }
 
-/* ==== シート一覧（教材切替時に「読み込み中…」） ==== */
+/* シート一覧の取得＆表示（読み込み中表示つき） */
 async function loadSheetList(bookKey){
   const box = $('sheetList');
-  // インラインの読み込み表示
-  box.innerHTML = `
-    <div class="muted" style="display:flex;align-items:center;gap:8px">
-      <span class="spin" style="width:14px;height:14px;border-width:2px"></span>読み込み中…
-    </div>`;
+  box.innerHTML = `<div class="muted" style="display:flex;align-items:center;gap:8px">
+    <span class="spin"></span>読み込み中…
+  </div>`;
   try{
-    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets', bookKey });
-    const list = res.sheets || [];
-    if(!list.length){
-      box.innerHTML = '<div class="muted">シートが見つかりません</div>';
-      return;
-    }
+    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizSheets', bookKey, idToken });
+    const list = (res.sheets || []).filter(name => !/^quizlogs$/i.test(name)); // 念のため
+    if(!list.length){ box.innerHTML = '<div class="muted">シートが見つかりません</div>'; return; }
+
     box.innerHTML = '';
     list.forEach(name=>{
       const label = document.createElement('label');
@@ -164,7 +164,8 @@ async function loadSheetList(bookKey){
       label.innerHTML = `<input type="checkbox" value="${name}"> ${name}`;
       box.appendChild(label);
     });
-    // 「第1章」があれば既定チェック
+
+    // 「第1章」があれば既定でチェック
     const chk = Array.from(box.querySelectorAll('input[type=checkbox]')).find(i=>i.value==='第1章');
     if(chk) chk.checked = true;
     msg('');
@@ -174,46 +175,42 @@ async function loadSheetList(bookKey){
   }
 }
 
-/* ==== 出題開始（開始〜表示までオーバーレイ「開始しています…」） ==== */
+/* 出題開始（開始中表示つき） */
 async function startQuiz(){
-  const startBtn = $('btnStart');
-  startBtn.disabled = true;
   try{
-    msg('');
+    msg('開始しています…');             // ← 開始中メッセージ
+    $('btnStart').disabled = true;
+
     score=0; idx=0; QUESTIONS=[];
     const checked = Array.from(document.querySelectorAll('#sheetList input[type=checkbox]:checked')).map(i=>i.value);
-    if(!checked.length){ msg('出題範囲を選んでください'); startBtn.disabled=false; return; }
+    if(!checked.length){ msg('出題範囲（シート）を1つ以上選んでください'); $('btnStart').disabled=false; return; }
     ORDER = (document.querySelector('input[name="order"]:checked')?.value === 'rand') ? 'rand' : 'seq';
 
-    // ここで「開始しています…」を表示
-    showBusy('開始しています…');
-
-    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLoad', bookKey: BOOK_KEY, sheets: checked });
+    const res = await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLoad', bookKey:BOOK_KEY, sheets: checked, idToken });
     const rows = res.items || [];
-    if(!rows.length){ hideBusy(); msg('問題が見つかりません'); startBtn.disabled=false; return; }
+    if(!rows.length){ msg('問題が見つかりません。列配置(A..H)・正解(G)をご確認ください。'); $('btnStart').disabled=false; return; }
 
     QUESTIONS = rows.map(r=>({
       sheet: r.sheet, no: r.no, text: r.text,
       choices: [r.c1,r.c2,r.c3,r.c4].filter(x=>x!==undefined && x!==''),
       answer: Number(r.ans||0), explain: r.explain || ''
-    })).filter(q=> q.text && q.choices.length>=2 && q.answer>=1 && q.answer<=q.choices.length);
+    }));
 
     if(ORDER==='rand'){
       for(let i=QUESTIONS.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [QUESTIONS[i],QUESTIONS[j]]=[QUESTIONS[j],QUESTIONS[i]]; }
     }
 
     renderQuestion();
-    hideBusy();     // クイズ描画直後にオーバーレイを消す
     showQuiz();
+    msg('');
   }catch(e){
-    hideBusy();
     msg('読み込みに失敗しました：'+(e?.message||e));
   }finally{
-    startBtn.disabled = false;
+    $('btnStart').disabled = false;
   }
 }
 
-/* ==== 出題 & 採点 ==== */
+/* 出題＆採点 */
 function renderQuestion(){
   const total = QUESTIONS.length;
   if(idx>=total){ finishQuiz(); return; }
@@ -254,27 +251,42 @@ function answer(n, btnEl){
 }
 function nextQuestion(){ idx++; renderQuestion(); }
 
+/* 終了（任意で学習ログ送信。QuizLogsはUIに出ない） */
 async function finishQuiz(){
-  try{
-    const sheets = Array.from(document.querySelectorAll('#sheetList input[type=checkbox]:checked')).map(i=>i.value);
-    await postJSON(QUIZ_GAS_ENDPOINT, { action:'quizLog', bookKey: BOOK_KEY, total: QUESTIONS.length, correct: score, sheets });
-  }catch(_){}
   showSetup();
   msg(`学習終了：${QUESTIONS.length}問中 ${score}問正解でした。`);
+  try{
+    await postJSON(QUIZ_GAS_ENDPOINT, {
+      action:'quizLog', bookKey:BOOK_KEY, total: QUESTIONS.length, correct: score,
+      sheets: Array.from(document.querySelectorAll('#sheetList input[type=checkbox]:checked')).map(i=>i.value),
+      idToken
+    });
+  }catch(_){}
 }
 
-/* ==== 起動 ==== */
+/* 起動 */
 (async ()=>{
+  $('uinfo').textContent = '初期化中…';
   try{
-    $('uinfo').textContent = '教材一覧を取得中…';
-    await loadBooks();
-    $('uinfo').textContent = '教材と出題範囲を選んで「開始」してください';
+    // idTokenを使いたい場合だけ。不要ならこの3行は消してください。
+    try{
+      await liff.init({ liffId: window.LIFF_ID });
+      if(liff.isLoggedIn()) idToken = liff.getIDToken();
+    }catch(_){ /* 非LINE環境でもそのまま動作 */ }
+
+    await loadBooks();          // 教材一覧→初回シートも読み込み
+    $('uinfo').textContent = '教材を選んで、出題範囲を選択してから「開始」を押してください';
   }catch(e){
     $('uinfo').textContent = '初期化エラー：'+(e?.message||e);
   }
 })();
+
+/* イベント */
 $('btnStart').addEventListener('click', startQuiz);
-$('btnReset').addEventListener('click', ()=>{ document.querySelectorAll('#sheetList input[type=checkbox]').forEach(c=>c.checked=false); msg(''); });
+$('btnReset').addEventListener('click', ()=>{
+  document.querySelectorAll('#sheetList input[type=checkbox]').forEach(c=>c.checked=false);
+  msg('');
+});
 $('btnNext').addEventListener('click', nextQuestion);
 $('btnFinish').addEventListener('click', finishQuiz);
 </script>
